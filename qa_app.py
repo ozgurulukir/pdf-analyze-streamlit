@@ -130,7 +130,10 @@ def generate_eval(text, N, chunk):
     return eval_set_full
 
 
-# ...
+@st.cache_resource
+def get_hf_embeddings(model_name: str):
+    return HuggingFaceEmbeddings(model_name=model_name)
+
 
 def main():
     
@@ -288,7 +291,7 @@ def main():
             embeddings = OpenAIEmbeddings()
         elif embedding_option == "HuggingFace Embeddings(slower)":
             # Replace "bert-base-uncased" with the desired HuggingFace model
-            embeddings = HuggingFaceEmbeddings()
+            embeddings = get_hf_embeddings()
 
         retriever = create_retriever(embeddings, splits, retriever_type)
 
