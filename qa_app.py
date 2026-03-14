@@ -120,8 +120,8 @@ def generate_eval(text, N, chunk):
 
 
 @st.cache_resource
-def get_hf_embeddings():
-    return HuggingFaceEmbeddings()
+def get_hf_embeddings(model_name: str):
+    return HuggingFaceEmbeddings(model_name=model_name)
 
 
 def main():
