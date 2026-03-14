@@ -1,5 +1,4 @@
 import os
-import PyPDF2
 import random
 import itertools
 import streamlit as st
@@ -35,24 +34,36 @@ st.set_page_config(page_title="PDF Analyzer",page_icon=':shark:')
 
 @st.cache_data
 def load_docs(files):
-    st.info("`Reading doc ...`")
+    from kreuzberg import extract_bytes_sync
+
+    st.info("`Reading doc(s) using kreuzberg ...`")
     all_text = ""
     progress_bar = st.progress(0)
-    for i, file_path in enumerate(files):
-        file_extension = os.path.splitext(file_path.name)[1]
-        if file_extension == ".pdf":
-            pdf_reader = PyPDF2.PdfReader(file_path)
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text()
-            all_text += text
-        elif file_extension == ".txt":
-            stringio = StringIO(file_path.getvalue().decode("utf-8"))
-            text = stringio.read()
-            all_text += text
-        else:
-            st.warning('Please provide txt or pdf.', icon="⚠️")
+
+    for i, file_obj in enumerate(files):
+        try:
+            # Get the content of the file
+            file_bytes = file_obj.getvalue()
+
+            # Retrieve the native MIME type from Streamlit's UploadedFile object
+            mime_type = file_obj.type
+            if not mime_type:
+                # Fallback in the rare case it is missing
+                mime_type = "application/octet-stream"
+
+            # Extract text from the document using Kreuzberg
+            result = extract_bytes_sync(file_bytes, mime_type)
+
+            # Combine the extracted content
+            if result and hasattr(result, "content"):
+                all_text += result.content + "\n"
+            else:
+                st.warning(f"Could not extract text from {file_obj.name}.", icon="⚠️")
+        except Exception as e:
+            st.warning(f"Error processing {file_obj.name}: {e}", icon="⚠️")
+
         progress_bar.progress((i + 1)/len(files))
+
     progress_bar.progress(100)
     return all_text
 
@@ -235,8 +246,22 @@ def main():
     else:
         os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
 
-    uploaded_files = st.file_uploader("Upload a PDF or TXT Document", type=[
-                                      "pdf", "txt"], accept_multiple_files=True)
+    uploaded_files = st.file_uploader(
+        "Upload a Document (PDF, Word, TXT, Excel, Images, etc.)",
+        type=[
+            "pdf", "docx", "docm", "dotx", "dotm", "dot", "odt",
+            "xlsx", "xlsm", "xlsb", "xls", "xla", "xlam", "xltm", "xltx", "xlt", "ods",
+            "pptx", "pptm", "ppsx", "potx", "potm", "pot",
+            "epub", "fb2", "dbf", "hwp", "hwpx",
+            "png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "tif",
+            "jp2", "jpx", "jpm", "mj2", "jbig2", "jb2", "pnm", "pbm", "pgm", "ppm",
+            "svg", "html", "htm", "xhtml", "xml", "json", "yaml", "yml", "toml", "csv", "tsv",
+            "txt", "md", "markdown", "djot", "mdx", "rst", "org", "rtf", "eml", "msg",
+            "zip", "tar", "tgz", "gz", "7z", "bib", "ris", "nbib", "enw", "csl",
+            "tex", "latex", "typ", "typst", "jats", "ipynb", "docbook", "dbk", "opml", "pod", "mdoc", "troff"
+        ],
+        accept_multiple_files=True
+    )
 
     if uploaded_files:
         # Check if last_uploaded_files is not in session_state or if uploaded_files are different from last_uploaded_files
