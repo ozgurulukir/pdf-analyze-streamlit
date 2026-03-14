@@ -11,19 +11,14 @@ mock_st.cache_data = identity
 mock_st.cache_resource = identity
 
 sys.modules["streamlit"] = mock_st
-sys.modules["PyPDF2"] = MagicMock()
-sys.modules["dotenv"] = MagicMock()
-sys.modules["langchain"] = MagicMock()
-sys.modules["langchain.vectorstores"] = MagicMock()
-sys.modules["langchain.chains"] = MagicMock()
-sys.modules["langchain.chat_models"] = MagicMock()
-sys.modules["langchain.retrievers"] = MagicMock()
-sys.modules["langchain.callbacks"] = MagicMock()
-sys.modules["langchain.embeddings.openai"] = MagicMock()
-sys.modules["langchain.text_splitter"] = MagicMock()
-sys.modules["langchain.callbacks.streaming_stdout"] = MagicMock()
-sys.modules["langchain.callbacks.base"] = MagicMock()
-sys.modules["langchain.embeddings"] = MagicMock()
+for module_name in (
+    "PyPDF2", "dotenv", "langchain", "langchain.vectorstores",
+    "langchain.chains", "langchain.chat_models", "langchain.retrievers",
+    "langchain.callbacks", "langchain.embeddings.openai",
+    "langchain.text_splitter", "langchain.callbacks.streaming_stdout",
+    "langchain.callbacks.base", "langchain.embeddings"
+):
+    sys.modules[module_name] = MagicMock()
 
 import qa_app
 
