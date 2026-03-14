@@ -64,7 +64,7 @@ def load_docs(files):
 
         progress_bar.progress((i + 1)/len(files))
 
-    progress_bar.progress(100)
+    progress_bar.progress(1.0)
     return all_text
 
 
