@@ -156,7 +156,7 @@ class TestQAApp(unittest.TestCase):
         result = qa_app.generate_eval(text, 1, 5)
 
         self.assertEqual(result, [])
-        mock_st.warning.assert_called()
+        mock_st.warning.assert_called_once_with('Error generating question 1.', icon="⚠️")
 
 if __name__ == '__main__':
     unittest.main()
