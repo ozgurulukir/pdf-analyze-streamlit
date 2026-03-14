@@ -144,8 +144,6 @@ def main():
         """
         <style>
         
-        #MainMenu {visibility: hidden;
-        # }
             footer {visibility: hidden;
             }
             .css-card {
@@ -228,9 +226,6 @@ def main():
             st.session_state.openai_api_key = openai_api_key
             os.environ["OPENAI_API_KEY"] = openai_api_key
         else:
-            #warning_text = 'Please enter your OpenAI API key. Get yours from here: [link](https://platform.openai.com/account/api-keys)'
-            #warning_html = f'<span>{warning_text}</span>'
-            #st.markdown(warning_html, unsafe_allow_html=True)
             return
     else:
         os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
@@ -290,14 +285,12 @@ def main():
                 f"""
                 <div class="css-card">
                 <span class="card-tag" style="color: black;">Question {i + 1}</span>
-                    <p style="font-size: 12px; color: black>{qa_pair['question']}</p>
+                    <p style="font-size: 12px; color: black">{qa_pair['question']}</p>
                     <p style="font-size: 12px; color: black">{qa_pair['answer']}</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
-            # <h4 style="font-size: 14px;">Question {i + 1}:</h4>
-            # <h4 style="font-size: 14px;">Answer {i + 1}:</h4>
         st.write("Ready to answer questions.")
 
         # Question and answering
