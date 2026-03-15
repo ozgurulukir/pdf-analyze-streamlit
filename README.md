@@ -1,44 +1,125 @@
-![Logo](img/logo1.png "Logo")
+# PDF Analyzer Pro v2.0
 
+Modern ve geliştirilmiş Streamlit tabanlı PDF Analiz uygulaması.
 
-**Try the app here:** [PDF Analyzer on Streamlit Cloud](https://mehmetba-pdf-analyze-streamlit-qa-app-5uufsy.streamlit.app/)
+## 🚀 Özellikler
 
-# PDF Analyzer App
+- 📄 **Çoklu Dosya Desteği** - PDF, TXT, MD dosyaları yükleyin
+- 💬 **Sohbet Arayüzü** - Modern chat interface ile sorular sorun
+- 🔍 **Akıllı Arama** - Similarity, SVM ve MMR retriever seçenekleri
+- ⚡ **Hızlı İşleme** - Chunking ve embedding optimizasyonları
+- 🎨 **Modern UI** - Streamlit component kütüphaneleri ile zengin arayüz
+- 📊 **Document Preview** - Yüklenen belgeleri görüntüleyin
 
-PDF Analyzer App is a question-answering application that allows users to upload documents (PDF or TXT) and ask questions related to the content of those documents. The app utilizes various retrievers such as similarity search and support vector machines to provide relevant answers.
+## 📦 Kurulum
 
-## Features
+### Gereksinimler
 
-- Upload PDF or TXT documents
-- Choose the type of retriever: Similarity Search or Support Vector Machines
-- Generate sample question-answer pairs based on the uploaded documents
-- Ask questions related to the content of the uploaded documents
-- Get answers from the app using the selected retriever method
+- Python 3.10+
+- OpenAI API Key
 
-## Installation
-
-Clone this repository:
+### Adımlar
 
 ```bash
+# Repository'yi klonlayın
 git clone https://github.com/mehmetba/pdf-analyze-streamlit.git
 cd pdf-analyze-streamlit
-```
 
-Create a virtual environment and install the required packages:
-
-```bash
+# Sanal ortam oluşturun
 python -m venv venv
-source venv/bin/activate  # For Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Bağımlılıkları yükleyin
 pip install -r requirements.txt
+
+# .env dosyasını oluşturun
+cp .env.example .env
+# .env dosyasına OpenAI API Key'inizi ekleyin
+
+# Uygulamayı çalıştırın
+streamlit run app/main.py
 ```
 
-## Usage
-To run the app, simply execute the following command:
+## 🏗️ Proje Yapısı
+
+```
+pdf-analyze-streamlit/
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # Ana uygulama
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── config.py       # Konfigürasyon
+│   │   ├── loader.py       # Belge yükleme
+│   │   └── retriever.py    # Retrieval ve QA
+│   └── ui/
+│       ├── __init__.py
+│       ├── sidebar.py      # Sidebar bileşenleri
+│       ├── upload.py       # Upload bileşenleri
+│       └── chat.py         # Chat arayüzü
+├── tests/
+│   ├── conftest.py
+│   ├── test_loader.py
+│   └── test_retriever.py
+├── .streamlit/
+│   └── config.toml
+├── .env.example
+├── pyproject.toml
+└── requirements.txt
+```
+
+## 🔧 Kullanılan Teknolojiler
+
+| Kategori | Teknoloji |
+|----------|-----------|
+| Web Framework | Streamlit 1.40+ |
+| AI Framework | LangChain 0.3+ |
+| Vector Store | FAISS |
+| Embeddings | OpenAI |
+| PDF Parsing | PyPDF2 |
+| UI Components | streamlit-option-menu, streamlit-extras |
+
+## ⚙️ Konfigürasyon
+
+### Environment Değişkenleri
+
+`.env` dosyasına ekleyin:
+
+```env
+OPENAI_API_KEY=sk-your-api-key-here
+```
+
+### Streamlit Ayarları
+
+`.streamlit/config.toml` dosyasından özelleştirin:
+
+```toml
+[theme]
+primaryColor = "#FF4B4B"
+backgroundColor = "#FFFFFF"
+
+[server]
+port = 8501
+```
+
+## 🧪 Test
 
 ```bash
-streamlit run qa_app.py
+# Testleri çalıştırın
+pytest tests/
+
+# Coverage ile test
+pytest --cov=app tests/
 ```
 
-After running the command, you can access the app through your web browser using the provided URL.
+## 📝 Lisans
 
-Developed by [Mehmet Balioglu](https://twitter.com/mehmet_ba7)
+MIT License - Detaylar için LICENSE dosyasına bakın.
+
+## 👤 Yazar
+
+Mehmet Balioglu - [Twitter](https://twitter.com/mehmet_ba7)
+
+---
+
+⭐ Bu projeyi beğendiyseniz yıldız vermeyi unutmayın!

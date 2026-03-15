@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf-analyze-streamlit"
+version = "2.0.0"
+description = "AI-Powered PDF Document Analysis Application"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Mehmet Balioglu", email = "mehmetba@example.com"}
+]
+keywords = ["streamlit", "langchain", "pdf", "ai", "qa", "rag"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "streamlit>=1.40",
+    "langchain>=0.3",
+    "langchain-openai>=0.2",
+    "langchain-community>=0.3",
+    "faiss-cpu>=1.8",
+    "PyPDF2>=3.0",
+    "python-dotenv>=1.0",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-mock>=3",
+    "black>=24",
+    "ruff>=0.4",
+]
+
+ui = [
+    "streamlit-option-menu>=0.3",
+    "streamlit-card>=0.0.6",
+    "streamlit-extras>=0.4",
+    "plotly>=5.0",
+]
+
+all = [
+    "streamlit-option-menu>=0.3",
+    "streamlit-card>=0.0.6",
+    "streamlit-extras>=0.4",
+    "plotly>=5.0",
+    "pytest>=8",
+    "pytest-mock>=3",
+    "black>=24",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+# pdf-analyzer = "streamlit run app/main.py"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
