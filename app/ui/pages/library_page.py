@@ -1,8 +1,14 @@
-"""Library page component."""
+"""Library page component with cache integration."""
 import streamlit as st
+
 from app.core import DatabaseManager
+from app.core.cache import (
+    get_cache_stats,
+    get_cached_database_manager,
+    invalidate_file_cache,
+)
 from app.core.constants import SessionKeys
-from app.ui.callbacks import delete_file_callback
+from app.ui.callbacks import delete_file_callback, get_cached_files
 
 STATUS_CONFIG = {
     "processed": {"icon": "✅", "color": "#10b981", "bg": "rgba(16,185,129,0.1)", "border": "rgba(16,185,129,0.25)", "label": "İşlendi"},
@@ -65,21 +71,21 @@ def render_file_card_visual(file, on_delete):
 
 
 def render_library_page(settings: dict):
-    """Render the document library page with tabbed management view."""
-    from app.ui.workspace import (
-        render_workspace_selector, 
-        render_upload_zone, 
-        render_document_stats
-    )
+    """Render the document library page with tabbed management view and caching."""
     from app.ui.callbacks import (
         create_workspace_callback,
-        select_workspace_callback,
+        delete_file_callback,
         delete_workspace_callback,
         rename_workspace_callback,
+        select_workspace_callback,
         upload_files_callback,
-        delete_file_callback
     )
-    
+    from app.ui.workspace import (
+        render_document_stats,
+        render_upload_zone,
+        render_workspace_selector,
+    )
+
     # Page Header
     st.markdown("""
     <div style="
@@ -104,21 +110,23 @@ def render_library_page(settings: dict):
     </div>
     """, unsafe_allow_html=True)
 
-    db = DatabaseManager()
+    # Use cached database manager
+    db = get_cached_database_manager()
     active_ws_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
     active_ws = db.get_workspace(active_ws_id) if active_ws_id else None
-    
+
     # Define Tabs
     tab_stats, tab_manage, tab_upload, tab_files = st.tabs([
-        "📊 Özet", 
-        "📁 Çalışma Alanları", 
-        "📤 Yükleme", 
+        "📊 Özet",
+        "📁 Çalışma Alanları",
+        "📤 Yükleme",
         "📄 Tüm Belgeler"
     ])
 
     with tab_stats:
         if active_ws:
-            files = db.get_files(active_ws.id)
+            # Use cached files
+            files = get_cached_files(active_ws.id)
             render_document_stats(files, active_ws.id, active_ws.name)
         else:
             st.info("İstatistikleri görmek için bir çalışma alanı seçin.")
@@ -136,7 +144,6 @@ def render_library_page(settings: dict):
     with tab_upload:
         if active_ws:
             st.markdown(f"#### 📤 '{active_ws.name}' Alanına Yükle")
-            # Using standardized settings passed from main orchestration
             render_upload_zone(
                 on_upload=lambda files: upload_files_callback(files, active_ws, settings)
             )
@@ -149,7 +156,9 @@ def render_library_page(settings: dict):
         else:
             @st.fragment
             def render_filtered_file_list():
-                files = db.get_files(active_ws.id)
+                # Use cached files
+                files = get_cached_files(active_ws.id)
+
                 if not files:
                     st.info("Bu çalışma alanında henüz belge yok.")
                 else:
@@ -160,12 +169,25 @@ def render_library_page(settings: dict):
                         key="lib_status_filter",
                         label_visibility="collapsed",
                     )
+
                     filtered = files if status_filter == "Tümü" else [f for f in files if f.status == status_filter]
                     st.markdown(f"<div style='color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;'>{len(filtered)} belge gösteriliyor</div>", unsafe_allow_html=True)
-                    
+
+                    # Refresh button with cache invalidation
+                    col_refresh, col_stats = st.columns([3, 1])
+                    with col_refresh:
+                        if st.button("🔄 Yenile", key="lib_refresh_files"):
+                            invalidate_file_cache(active_ws.id)
+                            st.rerun()
+                    with col_stats:
+                        stats = get_cache_stats()
+                        st.caption(f"Cache: {stats['query_cache']['size']}/{stats['query_cache']['max_size']}")
+
+                    st.divider()
+
                     cols = st.columns(2)
                     for idx, file in enumerate(filtered):
                         with cols[idx % 2]:
                             render_file_card_visual(file, delete_file_callback)
-            
+
             render_filtered_file_list()

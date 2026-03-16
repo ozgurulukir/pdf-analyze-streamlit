@@ -55,3 +55,5 @@ htmlcov/
 .cache/
 *.log
 data/
+developer/
+.zed/

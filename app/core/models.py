@@ -1,13 +1,14 @@
 """Data models for the application with Pydantic validation."""
-import uuid
-import json
 import hashlib
+import json
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Union
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+from typing import Any, Dict, List, Optional, Union
 
-from app.core.constants import ProcessingStatus, FileTypes
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.core.constants import FileTypes, ProcessingStatus
 
 
 def generate_id() -> str:
@@ -29,7 +30,7 @@ class WorkspaceModel(BaseModel):
     Workspace model - logical container for a collection of files.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     id: str = Field(default_factory=generate_id)
     name: str = Field(min_length=1, max_length=255, description="Workspace name")
     description: str = Field(default="", max_length=1000)
@@ -37,7 +38,7 @@ class WorkspaceModel(BaseModel):
     last_modified: datetime = Field(default_factory=now)
     file_count: int = Field(ge=0, default=0)
     is_active: bool = Field(default=False)
-    
+
     @field_validator('name')
     @classmethod
     def validate_name(cls, v: str) -> str:
@@ -45,11 +46,11 @@ class WorkspaceModel(BaseModel):
         if not v or not v.strip():
             raise ValueError("Workspace name cannot be empty")
         return v.strip()
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary."""
         return self.model_dump()
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'WorkspaceModel':
         """Create model from dictionary."""
@@ -61,7 +62,7 @@ class FileMetadataModel(BaseModel):
     File metadata model - tracks processing status and properties.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     id: str = Field(default_factory=generate_id)
     workspace_id: str = Field(min_length=1)
     filename: str = Field(max_length=255)
@@ -75,7 +76,7 @@ class FileMetadataModel(BaseModel):
     processed_at: Optional[datetime] = None
     error_message: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
-    
+
     @field_validator('file_type')
     @classmethod
     def validate_file_type(cls, v: str) -> str:
@@ -83,7 +84,7 @@ class FileMetadataModel(BaseModel):
         if v and not FileTypes.is_allowed(v):
             raise ValueError(f"File type '{v}' is not allowed")
         return v
-    
+
     @field_validator('size')
     @classmethod
     def validate_size(cls, v: int) -> int:
@@ -93,7 +94,7 @@ class FileMetadataModel(BaseModel):
         if v > config.MAX_FILE_SIZE_BYTES:
             raise ValueError(f"File size exceeds maximum of {config.MAX_FILE_SIZE_MB}MB")
         return v
-    
+
     @field_validator('status')
     @classmethod
     def validate_status(cls, v: str) -> str:
@@ -102,16 +103,16 @@ class FileMetadataModel(BaseModel):
         if v not in valid_statuses:
             raise ValueError(f"Invalid status: {v}. Must be one of {valid_statuses}")
         return v
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary."""
         return self.model_dump()
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'FileMetadataModel':
         """Create model from dictionary."""
         return cls(**data)
-    
+
     def compute_hash(self, content: bytes) -> str:
         """Compute SHA256 hash of file content."""
         return hashlib.sha256(content).hexdigest()
@@ -122,7 +123,7 @@ class ChunkMetadataModel(BaseModel):
     Chunk metadata model - tracks text fragments and vector associations.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     id: str = Field(default_factory=generate_id)
     file_id: str = Field(min_length=1)
     workspace_id: str = Field(min_length=1)
@@ -130,7 +131,7 @@ class ChunkMetadataModel(BaseModel):
     text_snippet: str = Field(default="")
     chroma_id: str = Field(default="")
     created_at: datetime = Field(default_factory=now)
-    
+
     @field_validator('text_snippet')
     @classmethod
     def validate_text_snippet(cls, v: str) -> str:
@@ -138,11 +139,11 @@ class ChunkMetadataModel(BaseModel):
         if not v or not v.strip():
             raise ValueError("Text snippet cannot be empty")
         return v
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary."""
         return self.model_dump()
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ChunkMetadataModel':
         """Create model from dictionary."""
@@ -154,7 +155,7 @@ class MessageModel(BaseModel):
     Chat message model.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     id: str = Field(default_factory=generate_id)
     role: str = Field(description="Message role: user, assistant, or system")
     content: str = Field(min_length=0, max_length=50000)
@@ -162,7 +163,7 @@ class MessageModel(BaseModel):
     workspace_id: Optional[str] = None
     sources: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     is_summarized: bool = Field(default=False)
-    
+
     @field_validator('role')
     @classmethod
     def validate_role(cls, v: str) -> str:
@@ -171,7 +172,7 @@ class MessageModel(BaseModel):
         if v not in valid_roles:
             raise ValueError(f"Invalid role: {v}. Must be one of {valid_roles}")
         return v
-    
+
     @field_validator('content')
     @classmethod
     def validate_content(cls, v: str) -> str:
@@ -179,11 +180,11 @@ class MessageModel(BaseModel):
         if len(v) > 50000:
             raise ValueError("Message content exceeds maximum length of 50000 characters")
         return v
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary."""
         return self.model_dump()
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MessageModel':
         """Create model from dictionary."""
@@ -195,7 +196,7 @@ class QAPairModel(BaseModel):
     Q&A pair model for extracted questions and answers.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     id: str = Field(default_factory=generate_id)
     workspace_id: Optional[str] = None
     file_ids: List[str] = Field(default_factory=list)
@@ -204,7 +205,7 @@ class QAPairModel(BaseModel):
     created_at: datetime = Field(default_factory=now)
     likes: int = Field(ge=0, default=0)
     dislikes: int = Field(ge=0, default=0)
-    
+
     @field_validator('question')
     @classmethod
     def validate_question(cls, v: str) -> str:
@@ -212,11 +213,11 @@ class QAPairModel(BaseModel):
         if not v or not v.strip():
             raise ValueError("Question cannot be empty")
         return v.strip()
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary."""
         return self.model_dump()
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'QAPairModel':
         """Create model from dictionary."""
@@ -228,7 +229,7 @@ class UserPreferencesModel(BaseModel):
     User preferences model for response customization.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     id: int = Field(default=1)
     weights: Dict[str, float] = Field(default_factory=lambda: {
         "concise": 0.5,
@@ -238,7 +239,7 @@ class UserPreferencesModel(BaseModel):
     })
     config: Optional[Dict[str, Any]] = None
     updated_at: datetime = Field(default_factory=now)
-    
+
     @field_validator('weights')
     @classmethod
     def validate_weights(cls, v: Dict[str, float]) -> Dict[str, float]:
@@ -247,11 +248,11 @@ class UserPreferencesModel(BaseModel):
             if not 0 <= value <= 1:
                 raise ValueError(f"Weight '{key}' must be between 0 and 1, got {value}")
         return v
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary."""
         return self.model_dump()
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'UserPreferencesModel':
         """Create model from dictionary."""
@@ -263,7 +264,7 @@ class JobModel(BaseModel):
     Background job model for tracking async operations.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     id: str = Field(default_factory=generate_id)
     job_type: str = Field(min_length=1)
     workspace_id: Optional[str] = None
@@ -276,7 +277,7 @@ class JobModel(BaseModel):
     created_at: datetime = Field(default_factory=now)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    
+
     @field_validator('status')
     @classmethod
     def validate_status(cls, v: str) -> str:
@@ -285,22 +286,22 @@ class JobModel(BaseModel):
         if v not in valid_statuses:
             raise ValueError(f"Invalid status: {v}")
         return v
-    
+
     @field_validator('progress')
     @classmethod
     def validate_progress(cls, v: float) -> float:
         """Ensure progress is between 0 and 1."""
         return max(0.0, min(1.0, v))
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary."""
         return self.model_dump()
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'JobModel':
         """Create model from dictionary."""
         return cls(**data)
-    
+
     def is_complete(self) -> bool:
         """Check if job is complete."""
         return self.status in [ProcessingStatus.COMPLETED.value, ProcessingStatus.FAILED.value]
@@ -322,7 +323,15 @@ class Workspace:
     is_active: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
-        return WorkspaceModel.model_validate(self).to_dict()
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_modified": self.last_modified.isoformat() if self.last_modified else None,
+            "file_count": self.file_count,
+            "is_active": self.is_active,
+        }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Workspace':
@@ -347,20 +356,34 @@ class FileMetadata:
     tags: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        return FileMetadataModel.model_validate(self).to_dict()
+        return {
+            "id": self.id,
+            "workspace_id": self.workspace_id,
+            "filename": self.filename,
+            "original_name": self.original_name,
+            "file_type": self.file_type,
+            "size": self.size,
+            "status": self.status,
+            "chunk_count": self.chunk_count,
+            "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
+            "processed_at": self.processed_at.isoformat() if self.processed_at else None,
+            "error_message": self.error_message,
+            "content_hash": self.content_hash,
+            "tags": self.tags,
+        }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'FileMetadata':
         """Create model from dictionary, handling JSON string fields."""
         processed_data = data.copy()
-        
+
         # Handle tags field (stored as string in DB)
         if 'tags' in processed_data and isinstance(processed_data['tags'], str):
             try:
                 processed_data['tags'] = json.loads(processed_data['tags'])
             except (json.JSONDecodeError, TypeError):
                 processed_data['tags'] = []
-        
+
         return cls(**FileMetadataModel(**processed_data).model_dump())
 
 
@@ -401,7 +424,7 @@ class Message:
     def from_dict(cls, data: Dict[str, Any]) -> 'Message':
         """Create model from dictionary, handling JSON string fields."""
         processed_data = data.copy()
-        
+
         # Handle sources field (stored as string in DB)
         if 'sources' in processed_data and processed_data['sources']:
             if isinstance(processed_data['sources'], str):
@@ -409,7 +432,7 @@ class Message:
                     processed_data['sources'] = json.loads(processed_data['sources'])
                 except (json.JSONDecodeError, TypeError):
                     processed_data['sources'] = []
-        
+
         return cls(**MessageModel(**processed_data).model_dump())
 
 
@@ -454,20 +477,20 @@ class UserPreferences:
         """Create model from dictionary, handling JSON string fields."""
         # Handle JSON string fields from database
         processed_data = data.copy()
-        
+
         if 'weights' in processed_data and isinstance(processed_data['weights'], str):
             try:
                 processed_data['weights'] = json.loads(processed_data['weights'])
             except (json.JSONDecodeError, TypeError):
                 processed_data['weights'] = {"concise": 0.5, "detailed": 0.5, "examples": 0.5, "step_by_step": 0.5}
-        
+
         if 'config' in processed_data and processed_data['config']:
             if isinstance(processed_data['config'], str):
                 try:
                     processed_data['config'] = json.loads(processed_data['config'])
                 except (json.JSONDecodeError, TypeError):
                     processed_data['config'] = None
-        
+
         return cls(**UserPreferencesModel(**processed_data).model_dump())
 
 
