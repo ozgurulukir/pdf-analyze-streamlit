@@ -13,14 +13,14 @@
 - Modeller: nomic-embed-text, mxbai-embed-large, all-minilm
 
 ### 3. Vector Store
-- **ChromaDB** persistent storage
+- **ChromaDB** persistent storage (stored in `data/chroma`)
 - Otomatik chunk'lama (RecursiveCharacterTextSplitter)
 - DirectoryLoader ile çoklu dosya desteği
 
 ### 4. Streamlit Arayüz
 - **Tilted-T Layout**: Geniş chat alanı + sidebar
 - **Streaming yanıtlar**: Gerçek zamanlı LLM çıktısı
-- **Mesaj geçmişi**: Session state'de saklanır
+- **Mesaj geçmişi**: SQLite veritabanında (`data/app.db`) saklanır
 
 ---
 
@@ -51,8 +51,8 @@ OLLAMA_BASE_URL=http://localhost:11434
 EMBED_MODEL=nomic-embed-text
 
 # Veri Ayarları
-DATA_DIR=./data
-CHROMA_PATH=./chroma_db
+DATA_DIR=data
+CHROMA_PATH=data/chroma
 ```
 
 ---
@@ -65,7 +65,7 @@ CHROMA_PATH=./chroma_db
 
 ### 2. Uygulamayı Çalıştır
 ```bash
-streamlit run app/app.py
+streamlit run app/main.py
 ```
 
 ### 3. Sidebar'dan Yapılandır
@@ -94,7 +94,7 @@ ollama pull deepseek-v2:671b
 ### Vector Store Hatası
 ChromaDB klasörünü silip yeniden oluşturun:
 ```bash
-rm -rf ./chroma_db
+rm -rf data/chroma
 ```
 
 ### API Bağlantı Hatası
@@ -108,10 +108,9 @@ rm -rf ./chroma_db
 ```
 pdf-analyze-streamlit/
 ├── app/
-│   └── app.py              # Ana uygulama
-├── data/                    # Belgeler buraya
-├── chroma_db/              # Vector store
-├── .env.example            # Örnek konfigürasyon
+│   └── main.py              # Ana uygulama
+├── data/                    # Tüm veriler (DB, Chroma, Belgeler)
+├── .env.example             # Örnek konfigürasyon
 ├── requirements.txt
 └── README.md
 ```

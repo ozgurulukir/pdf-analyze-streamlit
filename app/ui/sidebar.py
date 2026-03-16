@@ -1,6 +1,6 @@
 """Sidebar components for settings."""
 import streamlit as st
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, Dict, Any
 
 from app.core.config import (
     LLM_MODEL_OPTIONS, 
@@ -9,110 +9,110 @@ from app.core.config import (
     get_ollama_models,
     get_ollama_llm_models
 )
+from app.core.constants import SessionKeys
+from app.core.config import AppConfig
+from app.ui.workspace import render_job_progress
+from app.ui.callbacks import save_settings_callback
 
 
-def render_llm_settings():
-    """Render LLM settings in sidebar."""
+def render_llm_settings() -> Dict[str, Any]:
+    """Render LLM settings in sidebar with clear provider separation."""
     st.subheader("🤖 LLM Ayarları")
     
-    # Endpoint türü seçimi
+    # Endpoint type selection using radio
+    endpoint_type_options = ["Ollama Cloud", "Yerel Ollama", "Özel (OpenAI Compatible)"]
+    config = AppConfig()
+    current_type = st.session_state.get(SessionKeys.LAST_ENDPOINT_TYPE.value, config.DEFAULT_LLM_PROVIDER)
+    index = endpoint_type_options.index(current_type) if current_type in endpoint_type_options else 0
+    
     endpoint_type = st.radio(
-        "Endpoint Türü",
-        ["Ollama Cloud / Custom", "Yerel Ollama"],
-        index=0,
-        key="endpoint_type_radio"
+        "Provider / Endpoint",
+        endpoint_type_options,
+        index=index,
+        key="endpoint_type_radio",
+        on_change=save_settings_callback
     )
     
-    # Get current Ollama URL
-    ollama_url = st.session_state.get("ollama_url", "http://localhost:11434")
+    # Standardize session state keys
+    current_api_key = st.session_state.get(SessionKeys.OLLAMA_API_KEY.value, "ollama")
     
-    # Base URL
-    if endpoint_type == "Yerel Ollama":
-        base_url = st.text_input(
-            "Ollama URL",
-            value=st.session_state.get("ollama_url", "http://localhost:11434"),
-            key="llm_ollama_url_input",
-            help="Yerel Ollama sunucu adresi"
-        )
-    else:
-        base_url = st.text_input(
-            "Base URL",
-            value=st.session_state.get("llm_base_url", "https://ollama.com/v1"),
-            key="llm_base_url_input",
-            help="OpenAI-compatible API endpoint (Ollama Cloud, vLLM, Groq, Together vb.)"
-        )
+    # Initialization of internal widgets to avoid state conflict
+    if "llm_base_url_input" not in st.session_state:
+        st.session_state.llm_base_url_input = st.session_state.get(SessionKeys.LLM_BASE_URL.value, "https://ollama.com/v1")
+    if "ollama_api_key_input" not in st.session_state:
+        st.session_state.ollama_api_key_input = current_api_key
     
-    st.session_state.llm_base_url = base_url
-    
-    # Model seçimi - dinamik olarak Ollama'dan çek
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        # Model seçim türü
-        use_custom_model = st.checkbox("Özel model adı kullan", value=False, key="use_custom_llm_model")
-        
-        if use_custom_model:
-            # Kullanıcı kendi model adını girer
-            llm_model = st.text_input(
-                "Model Adı",
-                value=st.session_state.get("llm_model", ""),
-                key="llm_model_custom_input",
-                placeholder="örn: deepseek-v2:671b, qwen2.5:7b, llama3.1:8b"
-            )
+    # Reactive URL logic for endpoint shifts
+    if current_type != endpoint_type:
+        st.session_state[SessionKeys.LAST_ENDPOINT_TYPE.value] = endpoint_type
+        if endpoint_type == "Ollama Cloud":
+            st.session_state.llm_base_url_input = "https://ollama.com/v1"
+        elif endpoint_type == "Yerel Ollama":
+            st.session_state.llm_base_url_input = "http://localhost:11434/v1"
         else:
-            # Refresh butonu için session state kontrolü
+            st.session_state.llm_base_url_input = st.session_state.get(SessionKeys.LLM_BASE_URL.value, "https://api.openai.com/v1")
+        
+        # Save immediately when provider changes reactively
+        save_settings_callback()
+    
+    if endpoint_type == "Ollama Cloud":
+        st.info("💡 Ollama Cloud için OpenAI-compatible bir endpoint kullanılmaktadır.")
+
+    # Render inputs
+    base_url = st.text_input("Base URL", key="llm_base_url_input", help="API endpoint adresi.", on_change=save_settings_callback)
+    api_key = st.text_input("API Key / Token", type="password", key="ollama_api_key_input", help="Kimlik doğrulama anahtarı.", on_change=save_settings_callback)
+    
+    # Model Selection
+    is_cloud = (endpoint_type == "Ollama Cloud")
+    use_custom_model = st.checkbox("Özel model adı kullan", value=is_cloud, key="use_custom_llm_model", on_change=save_settings_callback)
+    
+    if use_custom_model:
+        current_model = st.session_state.get(SessionKeys.LLM_MODEL.value, "deepseek-v3.1:671b-cloud")
+        llm_model = st.text_input("Model Adı", value=current_model, key="llm_model_custom_input", on_change=save_settings_callback)
+    else:
+        ollama_url = st.session_state.get(SessionKeys.OLLAMA_URL.value, "http://localhost:11434")
+        col1, col2 = st.columns([3, 1])
+        with col1:
             if "ollama_llm_models" not in st.session_state:
                 st.session_state.ollama_llm_models = get_ollama_llm_models(ollama_url)
             
-            llm_models = st.session_state.ollama_llm_models
-            model_labels = [m["value"] for m in llm_models]
-            current_model = st.session_state.get("llm_model", llm_models[0]["value"] if llm_models else "deepseek-v2:671b")
+            model_values = [m["value"] for m in st.session_state.ollama_llm_models]
+            current_model = st.session_state.get(SessionKeys.LLM_MODEL.value)
+            idx = model_values.index(current_model) if current_model in model_values else 0
             
-            # Validate current model exists in list
-            if current_model not in model_labels:
-                current_model = llm_models[0]["value"] if llm_models else "deepseek-v2:671b"
-                model_index = 0
-            else:
-                model_index = model_labels.index(current_model)
-            
-            llm_model = st.selectbox(
-                "Model",
-                options=model_labels,
-                format_func=lambda x: next((m["label"] for m in llm_models if m["value"] == x), x),
-                index=model_index,
-                key="llm_model_select"
-            )
-    
-    with col2:
-        st.write("")  # Alignment
-        st.write("")  
-        if not use_custom_model:
-            if st.button("🔄", key="refresh_llm_models", help="Modelleri yenile"):
+            llm_model = st.selectbox("Model Seçin", options=model_values, index=idx, key="llm_model_select", on_change=save_settings_callback)
+        with col2:
+            st.write("")
+            st.write("")
+            if st.button("🔄", key="refresh_llm_models"):
                 st.session_state.ollama_llm_models = get_ollama_llm_models(ollama_url)
                 st.rerun()
+
+    temperature = st.slider("Temperature", 0.0, 1.0, float(st.session_state.get(SessionKeys.LLM_TEMPERATURE.value, 0.3)), 0.1, key="llm_temp_slider", on_change=save_settings_callback)
     
-    # API Key
-    api_key = st.text_input(
-        "API Key",
-        type="password",
-        value=st.session_state.get("llm_api_key", "ollama"),
-        key="llm_api_key_input",
-        help="API anahtarı (Ollama Cloud için gerekli)"
-    )
+    # Test Connection Button
+    if st.button("🔌 Bağlantıyı Test Et", use_container_width=True):
+        from app.core import create_llm
+        try:
+            with st.status("Bağlantı test ediliyor...", expanded=True) as status:
+                test_llm = create_llm(
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=llm_model,
+                    temperature=0.1,
+                    streaming=False
+                )
+                response = test_llm.invoke("Sadece 'Bağlantı başarılı' de.")
+                status.update(label="✅ Bağlantı Başarılı!", state="complete", expanded=False)
+                st.success(f"Model cevabı: {response.content}")
+        except Exception as e:
+            st.error(f"❌ Bağlantı Hatası: {str(e)}")
     
-    # Temperature
-    temperature = st.slider(
-        "Temperature",
-        min_value=0.0,
-        max_value=1.0,
-        value=st.session_state.get("llm_temperature", 0.3),
-        step=0.1,
-        key="llm_temp_slider"
-    )
-    
-    # Save to session
-    st.session_state.llm_model = llm_model
-    st.session_state.llm_api_key = api_key
-    st.session_state.llm_temperature = temperature
+    # Persistence
+    st.session_state[SessionKeys.LLM_BASE_URL.value] = base_url
+    st.session_state[SessionKeys.OLLAMA_API_KEY.value] = api_key
+    st.session_state[SessionKeys.LLM_MODEL.value] = llm_model
+    st.session_state[SessionKeys.LLM_TEMPERATURE.value] = temperature
     
     return {
         "model": llm_model,
@@ -122,104 +122,59 @@ def render_llm_settings():
     }
 
 
-def render_embedding_settings():
+def render_embedding_settings() -> Dict[str, Any]:
     """Render embedding settings in sidebar."""
     st.subheader("🔢 Embedding Ayarları")
     
-    # Embedding türü seçimi
+    # Provider selection
     embed_type = st.radio(
         "Embedding Türü",
         ["Ollama (Yerel)", "HuggingFace"],
-        index=0 if not st.session_state.get("use_huggingface", False) else 1,
-        key="embed_type_radio"
+        index=0 if not st.session_state.get(SessionKeys.USE_HUGGINGFACE.value, False) else 1,
+        key="embed_type_radio",
+        on_change=save_settings_callback
     )
     
     use_huggingface = (embed_type == "HuggingFace")
-    st.session_state.use_huggingface = use_huggingface
+    st.session_state[SessionKeys.USE_HUGGINGFACE.value] = use_huggingface
     
-    # Ollama URL input
-    ollama_url = st.text_input(
-        "Ollama URL",
-        value=st.session_state.get("ollama_url", "http://localhost:11434"),
-        key="ollama_url_input",
-        help="Ollama sunucu adresi"
-    )
-    st.session_state.ollama_url = ollama_url
+    ollama_url = st.text_input("Ollama URL", value=st.session_state.get(SessionKeys.OLLAMA_URL.value, "http://localhost:11434"), key="ollama_url_input", on_change=save_settings_callback)
+    st.session_state[SessionKeys.OLLAMA_URL.value] = ollama_url
     
     if use_huggingface:
-        # HuggingFace - custom model desteği
-        use_custom_hf = st.checkbox("Özel HuggingFace modeli kullan", value=False, key="use_custom_hf_model")
-        
+        use_custom_hf = st.checkbox("Özel HF modeli kullan", value=False, key="use_custom_hf_model", on_change=save_settings_callback)
         if use_custom_hf:
-            embed_model = st.text_input(
-                "Model Adı",
-                value=st.session_state.get("hf_embed_model", ""),
-                key="hf_embed_custom_input",
-                placeholder="örn: sentence-transformers/all-MiniLM-L6-v2"
-            )
+            embed_model = st.text_input("HF Model Adı", value=st.session_state.get(SessionKeys.HF_EMBED_MODEL.value, ""), key="hf_embed_custom_input", on_change=save_settings_callback)
         else:
-            hf_index = 0
             hf_models = [m["value"] for m in HF_EMBED_OPTIONS]
-            current_hf = st.session_state.get("hf_embed_model", HF_EMBED_OPTIONS[0]["value"])
-            if current_hf in hf_models:
-                hf_index = hf_models.index(current_hf)
-            
-            embed_model = st.selectbox(
-                "HuggingFace Model",
-                options=[m["value"] for m in HF_EMBED_OPTIONS],
-                format_func=lambda x: next((m["label"] for m in HF_EMBED_OPTIONS if m["value"] == x), x),
-                index=hf_index,
-                key="hf_embed_select"
-            )
+            curr_hf = st.session_state.get(SessionKeys.HF_EMBED_MODEL.value, HF_EMBED_OPTIONS[0]["value"])
+            idx = hf_models.index(curr_hf) if curr_hf in hf_models else 0
+            embed_model = st.selectbox("HF Model", options=hf_models, index=idx, key="hf_embed_select", on_change=save_settings_callback)
         
-        st.session_state.hf_embed_model = embed_model
-        st.session_state.embed_model = embed_model
+        st.session_state[SessionKeys.HF_EMBED_MODEL.value] = embed_model
+        st.session_state[SessionKeys.EMBED_MODEL.value] = embed_model
     else:
-        # Ollama - custom model desteği
-        use_custom_ollama = st.checkbox("Özel Ollama embedding modeli kullan", value=False, key="use_custom_embed_model")
-        
+        use_custom_ollama = st.checkbox("Özel Ollama embedding kullan", value=False, key="use_custom_embed_model", on_change=save_settings_callback)
         if use_custom_ollama:
-            embed_model = st.text_input(
-                "Embedding Model Adı",
-                value=st.session_state.get("embed_model", ""),
-                key="ollama_embed_custom_input",
-                placeholder="örn: nomic-embed-text, mxbai-embed-large"
-            )
+            embed_model = st.text_input("Ollama Embed Model", value=st.session_state.get(SessionKeys.EMBED_MODEL.value, ""), key="ollama_embed_custom_input", on_change=save_settings_callback)
         else:
-            # Ollama model seçimi - dinamik
             col1, col2 = st.columns([3, 1])
             with col1:
-                # Refresh butonu için session state kontrolü
                 if "ollama_embed_models" not in st.session_state:
                     st.session_state.ollama_embed_models = get_ollama_models(ollama_url)
                 
-                embed_models = st.session_state.ollama_embed_models
-                embed_labels = [m["value"] for m in embed_models]
-                current_ollama = st.session_state.get("embed_model", embed_models[0]["value"] if embed_models else "nomic-embed-text")
-                
-                # Validate current model exists in list
-                if current_ollama not in embed_labels:
-                    current_ollama = embed_models[0]["value"] if embed_models else "nomic-embed-text"
-                    ollama_index = 0
-                else:
-                    ollama_index = embed_labels.index(current_ollama)
-                
-                embed_model = st.selectbox(
-                    "Ollama Embedding Modeli",
-                    options=embed_labels,
-                    format_func=lambda x: next((m["label"] for m in embed_models if m["value"] == x), x),
-                    index=ollama_index,
-                    key="ollama_embed_select"
-                )
-            
+                options = [m["value"] for m in st.session_state.ollama_embed_models]
+                curr = st.session_state.get(SessionKeys.EMBED_MODEL.value)
+                idx = options.index(curr) if curr in options else 0
+                embed_model = st.selectbox("Ollama Modeli", options=options, index=idx, key="ollama_embed_select", on_change=save_settings_callback)
             with col2:
-                st.write("")  # Alignment
-                st.write("")  
-                if st.button("🔄", key="refresh_embed_models", help="Modelleri yenile"):
+                st.write("")
+                st.write("")
+                if st.button("🔄", key="refresh_embed_models"):
                     st.session_state.ollama_embed_models = get_ollama_models(ollama_url)
                     st.rerun()
         
-        st.session_state.embed_model = embed_model
+        st.session_state[SessionKeys.EMBED_MODEL.value] = embed_model
     
     return {
         "use_huggingface": use_huggingface,
@@ -228,115 +183,144 @@ def render_embedding_settings():
     }
 
 
-def render_data_settings():
-    """Render data settings in sidebar."""
+def render_data_settings() -> Dict[str, Any]:
+    """Render data and system settings."""
     st.subheader("📁 Veri Ayarları")
     
-    data_dir = st.text_input(
-        "Veri Klasörü",
-        value=st.session_state.get("data_dir", "./data"),
-        key="data_dir_input",
-        help="Belgelerin bulunduğu klasör"
-    )
+    # Grid for path inputs
+    config = AppConfig()
+    data_dir = st.text_input("Veri Klasörü", value=st.session_state.get(SessionKeys.DATA_DIR.value, config.DATA_DIR), key="data_dir_input", on_change=save_settings_callback)
+    chroma_path = st.text_input("Chroma Path", value=st.session_state.get(SessionKeys.CHROMA_PATH.value, config.CHROMA_PERSIST_DIR), key="chroma_path_input", on_change=save_settings_callback)
     
-    chroma_path = st.text_input(
-        "Chroma Path",
-        value=st.session_state.get("chroma_path", "./chroma_db"),
-        key="chroma_path_input",
-        help="Vector store klasörü"
-    )
+    col1, col2 = st.columns(2)
+    with col1:
+        chunk_size = st.number_input("Chunk Size", 100, 2000, int(st.session_state.get(SessionKeys.CHUNK_SIZE.value, 1000)), 100, key="chunk_size_input", on_change=save_settings_callback)
+    with col2:
+        chunk_overlap = st.number_input("Overlap", 0, 500, int(st.session_state.get(SessionKeys.CHUNK_OVERLAP.value, 200)), 50, key="chunk_overlap_input", on_change=save_settings_callback)
     
-    chunk_size = st.number_input(
-        "Chunk Size",
-        min_value=100,
-        max_value=2000,
-        value=st.session_state.get("chunk_size", 1000),
-        step=100,
-        key="chunk_size_input"
-    )
+    # Persistence
+    st.session_state[SessionKeys.DATA_DIR.value] = data_dir
+    st.session_state[SessionKeys.CHROMA_PATH.value] = chroma_path
+    st.session_state[SessionKeys.CHUNK_SIZE.value] = chunk_size
+    st.session_state[SessionKeys.CHUNK_OVERLAP.value] = chunk_overlap
     
-    chunk_overlap = st.number_input(
-        "Chunk Overlap",
-        min_value=0,
-        max_value=500,
-        value=st.session_state.get("chunk_overlap", 200),
-        step=50,
-        key="chunk_overlap_input"
-    )
+    st.divider()
+    st.markdown("### ⚠️ Tehlikeli Bölge")
     
-    # Save to session
-    st.session_state.data_dir = data_dir
-    st.session_state.chroma_path = chroma_path
-    st.session_state.chunk_size = chunk_size
-    st.session_state.chunk_overlap = chunk_overlap
+    reset_triggered = False
+    from streamlit_extras.stylable_container import stylable_container
+    with stylable_container(
+        key="danger_zone",
+        css_styles="button { background-color: #ef4444 !important; color: white !important; }",
+    ):
+        if st.checkbox("Sıfırlama Kilidini Aç", key="unlock_reset"):
+            if st.button("❌ Tüm Sistemi Sıfırla", use_container_width=True):
+                reset_triggered = True
     
     return {
         "data_dir": data_dir,
         "chroma_path": chroma_path,
         "chunk_size": chunk_size,
-        "chunk_overlap": chunk_overlap
+        "chunk_overlap": chunk_overlap,
+        "reset_system": reset_triggered
     }
 
-
-def render_workspace_selector(
-    workspaces: List,
-    active_workspace: Optional,
-    on_create: Callable,
-    on_select: Callable,
-    on_delete: Callable
-):
-    """Render workspace selector."""
-    st.markdown("### 📁 Çalışma Alanları")
-    
-    for ws in workspaces:
-        is_active = active_workspace and ws.id == active_workspace.id
-        
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if is_active:
-                st.success("✅")
-            else:
-                if st.button("📂", key=f"sel_{ws.id}"):
-                    on_select(ws.id)
-        with col2:
-            st.markdown(f"**{ws.name}**")
-            st.caption(f"{ws.file_count} dosya")
-    
+def render_sidebar_branding():
+    """Render application branding in sidebar."""
+    st.markdown("""
+    <div style="text-align:center; padding: 1rem 0 0.5rem;">
+        <div style="
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, #6366f1, #7c3aed);
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 0.75rem;
+            box-shadow: 0 6px 20px rgba(99,102,241,0.4);
+        ">🎯</div>
+        <div style="
+            font-size: 1rem; font-weight: 800;
+            background: linear-gradient(to right, #a5b4fc, #e0e7ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: -0.03em;
+        ">PDF ANALYZER PRO</div>
+        <div style="font-size: 0.65rem; color: #64748b; margin-top:2px; letter-spacing: 0.08em; text-transform: uppercase;">AI Document Intelligence</div>
+    </div>
+    """, unsafe_allow_html=True)
     st.divider()
-    
-    with st.expander("➕ Yeni Çalışma Alanı", expanded=False):
-        new_name = st.text_input("İsim", key="new_workspace_name")
-        if st.button("Oluştur", key="create_workspace_btn"):
-            if new_name.strip():
-                on_create(new_name)
 
-
-def render_file_list(files: List, on_delete: Callable):
-    """Render file list."""
-    st.markdown(f"### 📄 Dosyalar ({len(files)})")
+def render_active_workspace_summary(db):
+    """Render summary of the active workspace and its processing status."""
+    from app.core.jobs import get_job_queue
     
-    for file in files:
-        status_icon = {
-            "pending": "⏳",
-            "processing": "⚙️",
-            "processed": "✅",
-            "error": "❌"
-        }.get(file.status, "❓")
+    active_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
+    active_ws = db.get_workspace(active_id) if active_id else None
+    
+    if active_ws:
+        st.markdown(f"""
+        <div style="background: rgba(99, 102, 241, 0.1); border-radius: 10px; padding: 0.75rem; border: 1px solid rgba(99, 102, 241, 0.2); margin-bottom: 1rem;">
+            <div style="font-size: 0.7rem; color: #a5b4fc; font-weight: bold; margin-bottom: 4px;">AKTİF ÇALIŞMA ALANI</div>
+            <div style="font-size: 0.9rem; color: #f8fafc; font-weight: 600;">📂 {active_ws.name}</div>
+            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">{active_ws.file_count} belge yüklü</div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            st.markdown(f"📄 **{file.original_name}**")
-            st.caption(f"{status_icon} {file.status} • {file.size // 1024} KB")
-        with col2:
-            if st.button("🗑️", key=f"del_{file.id}"):
-                on_delete(file.id)
+        # Background Job Progress with Fragment for auto-refresh
+        job_queue = get_job_queue()
+        
+        @st.fragment(run_every="3s")
+        def job_progress_fragment():
+            active_jobs = job_queue.get_active_jobs(active_id)
+            if active_jobs:
+                st.caption("⚙️ İşlenen Belgeler")
+                for job in active_jobs:
+                    render_job_progress(job)
+                st.divider()
+        
+        job_progress_fragment()
+    else:
+        st.info("Çalışma alanı seçilmedi.")
+        if st.button("📁 Yönetime Git", use_container_width=True):
+            st.session_state[SessionKeys.CURRENT_PAGE.value] = "📁 Belgeler"
+            st.rerun()
 
-
-def render_job_progress(job):
-    """Render job progress."""
-    if job.status in ("pending", "running"):
-        st.progress(job.progress / 100, text=f"{job.status}... {job.progress:.0f}%")
-    elif job.status == "completed":
-        st.success("✅ Tamamlandı")
-    elif job.status == "failed":
-        st.error(f"❌ Başarısız: {job.error_message}")
+def render_sidebar_content() -> Dict[str, Any]:
+    """
+    Consolidated sidebar rendering function.
+    
+    Returns:
+        Dict: Current application settings.
+    """
+    from app.core.database import DatabaseManager
+    db = DatabaseManager()
+    config = AppConfig()
+    
+    with st.sidebar:
+        render_sidebar_branding()
+        render_active_workspace_summary(db)
+        
+        # Quick Actions
+        st.markdown("<div style='margin-top: auto;'>", unsafe_allow_html=True)
+        if st.button("🧹 Sohbeti Temizle", use_container_width=True):
+            st.session_state[SessionKeys.CHAT_HISTORY.value] = []
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+            
+    # Compile current settings dict for main orchestration
+    return {
+        "model": st.session_state.get(SessionKeys.LLM_MODEL.value),
+        "base_url": st.session_state.get(SessionKeys.LLM_BASE_URL.value),
+        "api_key": st.session_state.get(SessionKeys.OLLAMA_API_KEY.value),
+        "temperature": st.session_state.get(SessionKeys.LLM_TEMPERATURE.value),
+        "chroma_path": st.session_state.get(SessionKeys.CHROMA_PATH.value, config.CHROMA_PERSIST_DIR),
+        "data_dir": st.session_state.get(SessionKeys.DATA_DIR.value, config.DATA_DIR),
+        "chunk_size": st.session_state.get(SessionKeys.CHUNK_SIZE.value, config.CHUNK_SIZE),
+        "chunk_overlap": st.session_state.get(SessionKeys.CHUNK_OVERLAP.value, config.CHUNK_OVERLAP),
+        "embedding": {
+            "use_huggingface": st.session_state.get(SessionKeys.USE_HUGGINGFACE.value),
+            "model_name": st.session_state.get(SessionKeys.EMBED_MODEL.value) if not st.session_state.get(SessionKeys.USE_HUGGINGFACE.value) else st.session_state.get(SessionKeys.HF_EMBED_MODEL.value),
+            "ollama_url": st.session_state.get(SessionKeys.OLLAMA_URL.value),
+            "chunk_size": st.session_state.get(SessionKeys.CHUNK_SIZE.value, config.CHUNK_SIZE),
+            "chunk_overlap": st.session_state.get(SessionKeys.CHUNK_OVERLAP.value, config.CHUNK_OVERLAP)
+        }
+    }

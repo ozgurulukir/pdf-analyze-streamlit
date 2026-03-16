@@ -1,125 +1,77 @@
-# PDF Analyzer Pro v2.0
+# PDF Analyzer Pro 🎯
 
-Modern ve geliştirilmiş Streamlit tabanlı PDF Analiz uygulaması.
+AI tabanlı, modern ve modüler bir belge analiz uygulaması. Streamlit, LangChain ve Ollama/OpenAI teknolojileri kullanılarak geliştirilmiştir.
 
-## 🚀 Özellikler
+## 🚀 Öne Çıkan Özellikler
 
-- 📄 **Çoklu Dosya Desteği** - PDF, TXT, MD dosyaları yükleyin
-- 💬 **Sohbet Arayüzü** - Modern chat interface ile sorular sorun
-- 🔍 **Akıllı Arama** - Similarity, SVM ve MMR retriever seçenekleri
-- ⚡ **Hızlı İşleme** - Chunking ve embedding optimizasyonları
-- 🎨 **Modern UI** - Streamlit component kütüphaneleri ile zengin arayüz
-- 📊 **Document Preview** - Yüklenen belgeleri görüntüleyin
+- 📁 **Gelişmiş Çalışma Alanı Yönetimi**: Belgelerinizi farklı çalışma alanlarında organize edin.
+- 📄 **Kreuzberg Entegrasyonu**: PDF, DOCX, Resim ve daha birçok format dökümandan yüksek doğrulukla metin çıkarımı.
+- 💬 **Gerçek Zamanlı Sohbet**: Streaming (akış) desteği ile gecikmesiz yanıtlar.
+- 🧠 **Esnek LLM Gecitleri**: Ollama Cloud, Yerel Ollama veya herhangi bir OpenAI uyumlu API kullanım imkanı.
+- 🔢 **Çoklu Embedding Desteği**: Yerel Ollama modelleri veya HuggingFace (transformer) modelleri arasında geçiş.
+- 🎨 **Premium UI**: Modern Indigo-Dark tema ve tilted-T layout ile üst düzey kullanıcı deneyimi.
+- 📊 **Q&A Dashboard**: Önceki sorulardan elde edilen içgörüleri yönetin ve oylayın.
 
-## 📦 Kurulum
+## 🏗️ Mimari Yapı
+
+Uygulama, sürdürülebilirlik ve tip güvenliği için dikey katmanlı bir mimari kullanır:
+
+- **Core Layer**: 
+    - `database.py`: SQLite odaklı veri yönetimi.
+    - `chroma.py`: ChromaDB vektör veritabanı yönetimi.
+    - `rag.py`: RAG (Retrieval-Augmented Generation) operasyonları ve istem şablonları.
+    - `models.py`: Merkezi veri modelleri ve dataclass'lar.
+- **Service Layer**: 
+    - `file_service.py`: Belge yükleme ve OCR/Metin çıkarım servisleri.
+    - `chat_service.py`: Sohbet ve RAG isteklerinin UI'dan bağımsız yönetimi.
+- **UI Layer**: 
+    - `main.py`: Uygulama giriş noktası ve session yönetimi.
+    - `pages/`: Modüler sayfa yapıları (Sohbet, Belgeler, Analiz, Ayarlar).
+    - `callbacks.py`: UI olaylarını servislere aktaran köprüler.
+
+## 📦 Kurulum ve Çalıştırma
 
 ### Gereksinimler
-
 - Python 3.10+
-- OpenAI API Key
+- Ollama (Yerel kullanım için) veya OpenAI-uyumlu API anahtarı.
 
 ### Adımlar
 
-```bash
-# Repository'yi klonlayın
-git clone https://github.com/mehmetba/pdf-analyze-streamlit.git
-cd pdf-analyze-streamlit
+1. **Hazırlık**:
+   ```bash
+   # Sanal ortam oluşturun
+   python -m venv .venv
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   ```
 
-# Sanal ortam oluşturun
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+2. **Bağımlılıkları Yükleyin**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-# Bağımlılıkları yükleyin
-pip install -r requirements.txt
-
-# .env dosyasını oluşturun
-cp .env.example .env
-# .env dosyasına OpenAI API Key'inizi ekleyin
-
-# Uygulamayı çalıştırın
-streamlit run app/main.py
-```
-
-## 🏗️ Proje Yapısı
-
-```
-pdf-analyze-streamlit/
-├── app/
-│   ├── __init__.py
-│   ├── main.py              # Ana uygulama
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── config.py       # Konfigürasyon
-│   │   ├── loader.py       # Belge yükleme
-│   │   └── retriever.py    # Retrieval ve QA
-│   └── ui/
-│       ├── __init__.py
-│       ├── sidebar.py      # Sidebar bileşenleri
-│       ├── upload.py       # Upload bileşenleri
-│       └── chat.py         # Chat arayüzü
-├── tests/
-│   ├── conftest.py
-│   ├── test_loader.py
-│   └── test_retriever.py
-├── .streamlit/
-│   └── config.toml
-├── .env.example
-├── pyproject.toml
-└── requirements.txt
-```
+3. **Çalıştırın**:
+   ```bash
+   streamlit run app/main.py
+   ```
 
 ## 🔧 Kullanılan Teknolojiler
 
 | Kategori | Teknoloji |
-|----------|-----------|
-| Web Framework | Streamlit 1.40+ |
-| AI Framework | LangChain 0.3+ |
-| Vector Store | FAISS |
-| Embeddings | OpenAI |
-| PDF Parsing | PyPDF2 |
-| UI Components | streamlit-option-menu, streamlit-extras |
+| :--- | :--- |
+| **Frontend** | Streamlit 1.40+ |
+| **Orchestration** | LangChain 0.3+ |
+| **Vector DB** | ChromaDB |
+| **Extraction** | Kreuzberg |
+| **Embedding** | Ollama / HuggingFace |
+| **Metreics** | Plotly |
 
-## ⚙️ Konfigürasyon
+## 🛠️ Geliştirici Notları
 
-### Environment Değişkenleri
-
-`.env` dosyasına ekleyin:
-
-```env
-OPENAI_API_KEY=sk-your-api-key-here
-```
-
-### Streamlit Ayarları
-
-`.streamlit/config.toml` dosyasından özelleştirin:
-
-```toml
-[theme]
-primaryColor = "#FF4B4B"
-backgroundColor = "#FFFFFF"
-
-[server]
-port = 8501
-```
-
-## 🧪 Test
-
-```bash
-# Testleri çalıştırın
-pytest tests/
-
-# Coverage ile test
-pytest --cov=app tests/
-```
-
-## 📝 Lisans
-
-MIT License - Detaylar için LICENSE dosyasına bakın.
-
-## 👤 Yazar
-
-Mehmet Balioglu - [Twitter](https://twitter.com/mehmet_ba7)
+Proje, **Python Best Practices** prensiplerine göre refaktör edilmiştir:
+- Tüm metodlar tip ipuçları (`Type Hints`) ile donatılmıştır.
+- Google-style docstring formatı kullanılmıştır.
+- Merkezi bir `logger` ve özel `AppError` sınıfları ile hata yönetimi optimize edilmiştir.
+- `SessionKeys` Enum yapısı ile state yönetimi tip güvenli hale getirilmiştir.
 
 ---
-
-⭐ Bu projeyi beğendiyseniz yıldız vermeyi unutmayın!
+⭐ Eğer bu projeyi faydalı buluyorsanız lütfen bir yıldız bırakmayı unutmayın!

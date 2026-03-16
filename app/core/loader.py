@@ -1,9 +1,9 @@
-"""Document loader for various file types."""
+"""Document loader using Kreuzberg for unified extraction."""
 import io
 import os
+import asyncio
 from typing import List, Optional
 import streamlit as st
-from PyPDF2 import PdfReader
 
 try:
     from langchain_core.documents import Document
@@ -12,7 +12,7 @@ except ImportError:
 
 
 class DocumentLoader:
-    """Handles loading various document formats."""
+    """Handles loading various document formats via Kreuzberg."""
 
     SUPPORTED_TYPES = {
         "pdf": "PDF Document",
@@ -20,118 +20,68 @@ class DocumentLoader:
         "md": "Markdown File",
         "docx": "Word Document",
         "html": "HTML File",
+        "pptx": "PowerPoint",
+        "png": "Image (OCR)",
+        "jpg": "Image (OCR)",
+        "jpeg": "Image (OCR)"
     }
 
     @staticmethod
-    def load_pdf(file) -> str:
-        """Load and extract text from PDF."""
-        try:
-            # Handle both BytesIO and UploadedFile
-            if hasattr(file, 'read'):
-                file.seek(0)
-                pdf_reader = PdfReader(file)
-            else:
-                with open(file, 'rb') as f:
-                    pdf_reader = PdfReader(f)
-            
-            text = ""
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-            
-            return text
-        except Exception as e:
-            st.error(f"PDF okuma hatası: {str(e)}")
-            return ""
+    def calculate_hash(content: bytes) -> str:
+        """Calculate SHA-256 hash of content."""
+        import hashlib
+        return hashlib.sha256(content).hexdigest()
 
     @staticmethod
-    def load_txt(file) -> str:
-        """Load and extract text from text file."""
+    def load_file(file) -> str:
+        """Load and extract text from file using Kreuzberg."""
+        from kreuzberg import extract_file, extract_bytes
+        import asyncio
+        import mimetypes
+
+        def get_or_create_event_loop():
+            try:
+                return asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                return loop
+
         try:
-            # Try multiple encodings
+            loop = get_or_create_event_loop()
+            
+            # Handle both BytesIO (Streamlit UploadedFile) and file paths
             if hasattr(file, 'read'):
                 file.seek(0)
                 content = file.read()
+                file_name = getattr(file, 'name', 'file')
                 
-                for encoding in ['utf-8', 'latin-1', 'cp1252', 'utf-16']:
-                    try:
-                        return content.decode(encoding)
-                    except (UnicodeDecodeError, AttributeError):
-                        continue
+                # Kreuzberg requires mime_type for extract_bytes
+                mime_type, _ = mimetypes.guess_type(file_name)
+                if not mime_type:
+                    # Fallback for common types if guess_type fails
+                    ext = file_name.split('.')[-1].lower()
+                    mime_map = {
+                        'pdf': 'application/pdf',
+                        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'txt': 'text/plain',
+                        'md': 'text/markdown',
+                        'html': 'text/html'
+                    }
+                    mime_type = mime_map.get(ext, 'application/octet-stream')
                 
-                # Last resort: decode with errors='ignore'
-                return content.decode('utf-8', errors='ignore')
+                # Use extract_bytes (async) and run in loop
+                # Result is a ParseResult object with content attribute
+                result = loop.run_until_complete(extract_bytes(content, mime_type))
+                return result.content if hasattr(result, 'content') else str(result)
             else:
-                with open(file, 'r', encoding='utf-8') as f:
-                    return f.read()
+                # Direct file path
+                result = loop.run_until_complete(extract_file(file))
+                return result.content if hasattr(result, 'content') else str(result)
+                
         except Exception as e:
-            st.error(f"TXT okuma hatası: {str(e)}")
+            st.error(f"Kreuzberg okuma hatası: {str(e)}")
             return ""
-
-    @staticmethod
-    def load_docx(file) -> str:
-        """Load and extract text from DOCX."""
-        try:
-            from docx import Document as DocxDocument
-            
-            # Handle both BytesIO and file path
-            if hasattr(file, 'read'):
-                file.seek(0)
-                doc = DocxDocument(io.BytesIO(file.read()))
-            else:
-                doc = DocxDocument(file)
-            
-            text = ""
-            for para in doc.paragraphs:
-                text += para.text + "\n"
-            
-            return text
-        except Exception as e:
-            st.error(f"DOCX okuma hatası: {str(e)}")
-            return ""
-
-    @staticmethod
-    def load_html(file) -> str:
-        """Load and extract text from HTML."""
-        try:
-            from bs4 import BeautifulSoup
-            
-            if hasattr(file, 'read'):
-                file.seek(0)
-                content = file.read()
-                soup = BeautifulSoup(content, 'lxml')
-            else:
-                with open(file, 'r', encoding='utf-8') as f:
-                    soup = BeautifulSoup(f, 'lxml')
-            
-            # Remove script and style elements
-            for script in soup(["script", "style"]):
-                script.decompose()
-            
-            return soup.get_text(separator='\n', strip=True)
-        except Exception as e:
-            st.error(f"HTML okuma hatası: {str(e)}")
-            return ""
-
-    @classmethod
-    def load_file(cls, uploaded_file) -> str:
-        """Load file based on extension."""
-        file_ext = uploaded_file.name.split('.')[-1].lower()
-
-        if file_ext not in cls.SUPPORTED_TYPES:
-            raise ValueError(f"Desteklenmeyen dosya tipi: {file_ext}")
-
-        if file_ext == "pdf":
-            return cls.load_pdf(uploaded_file)
-        elif file_ext in ("txt", "md"):
-            return cls.load_txt(uploaded_file)
-        elif file_ext == "docx":
-            return cls.load_docx(uploaded_file)
-        elif file_ext == "html":
-            return cls.load_html(uploaded_file)
-
-        return ""
 
     @classmethod
     def load_documents(cls, uploaded_files) -> List[Document]:
@@ -141,7 +91,7 @@ class DocumentLoader:
         for uploaded_file in uploaded_files:
             try:
                 text = cls.load_file(uploaded_file)
-                if text.strip():
+                if text and text.strip():
                     doc = Document(
                         page_content=text,
                         metadata={
@@ -151,42 +101,49 @@ class DocumentLoader:
                         }
                     )
                     documents.append(doc)
+                else:
+                    st.warning(f"⚠️ {uploaded_file.name}: Metin çıkarılamadı veya dosya boş.")
             except Exception as e:
                 st.warning(f"⚠️ {uploaded_file.name} yüklenemedi: {str(e)}")
 
         return documents
 
     @classmethod
-    def load_directory(cls, directory_path: str, glob_pattern: str = "**/*.pdf") -> List[Document]:
-        """Load documents from a directory using DirectoryLoader."""
-        from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader, TextLoader, UnstructuredMarkdownLoader
+    def load_directory(cls, directory_path: str, glob_pattern: str = "**/*.*") -> List[Document]:
+        """Load documents from a directory using Kreuzberg for each file."""
+        import glob
         
-        # Mapping extension to loader
-        loaders = {
-            ".pdf": PyPDFLoader,
-            ".txt": TextLoader,
-            ".md": UnstructuredMarkdownLoader,
-        }
-        
-        documents = []
         path = os.path.abspath(directory_path)
-        
         if not os.path.exists(path):
             st.error(f"Dizin bulunamadı: {path}")
             return []
 
-        try:
-            loader = DirectoryLoader(
-                path,
-                glob=glob_pattern,
-                show_progress=True,
-                use_multithreading=True
-            )
-            documents = loader.load()
-            return documents
-        except Exception as e:
-            st.error(f"Dizin yükleme hatası: {str(e)}")
-            return []
+        search_pattern = os.path.join(path, glob_pattern)
+        file_paths = glob.glob(search_pattern, recursive=True)
+        
+        documents = []
+        for file_path in file_paths:
+            if os.path.isdir(file_path):
+                continue
+                
+            file_ext = file_path.split('.')[-1].lower()
+            if file_ext in cls.SUPPORTED_TYPES:
+                try:
+                    text = cls.load_file(file_path)
+                    if text and text.strip():
+                        doc = Document(
+                            page_content=text,
+                            metadata={
+                                "source": file_path,
+                                "type": file_ext,
+                                "size": os.path.getsize(file_path),
+                            }
+                        )
+                        documents.append(doc)
+                except Exception as e:
+                    st.warning(f"⚠️ {os.path.basename(file_path)} okunamadı: {str(e)}")
+        
+        return documents
 
     @staticmethod
     def validate_file(uploaded_file, max_size_mb: int = 50) -> tuple[bool, Optional[str]]:

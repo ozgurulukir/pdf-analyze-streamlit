@@ -38,9 +38,6 @@ def get_ollama_models(base_url: str = "http://localhost:11434") -> List[Dict[str
                 model_options = []
                 for m in models:
                     name = m.get("name", "")
-                    # Remove tag if present (e.g., "model:latest" -> "model")
-                    if ":" in name:
-                        name = name.split(":")[0]
                     model_options.append({
                         "label": f"{name} (indirilmiş)",
                         "value": name
@@ -83,12 +80,10 @@ def get_ollama_llm_models(base_url: str = "http://localhost:11434") -> List[Dict
                     # Skip embedding models
                     if any(kw in name.lower() for kw in embed_keywords):
                         continue
-                    # Remove tag
-                    if ":" in name:
-                        name = name.split(":")[0]
+                    
                     size_gb = m.get("size", 0) / (1024**3)
                     llm_models.append({
-                        "label": f"{name} ({size_gb:.1f}GB)",
+                        "label": f"{name} ({size_gb:.1f} GB)",
                         "value": name
                     })
                 if llm_models:
@@ -101,19 +96,22 @@ def get_ollama_llm_models(base_url: str = "http://localhost:11434") -> List[Dict
 
 @dataclass
 class AppConfig:
-    """Application configuration."""
+    """Application configuration with environment variable support."""
 
     # App settings
-    APP_TITLE: str = "PDF Analyzer Pro"
+    APP_TITLE: str = field(default_factory=lambda: os.getenv("APP_NAME", "PDF Analyzer Pro"))
     APP_ICON: str = "📄"
     APP_DESCRIPTION: str = "AI-Powered Document Analysis"
+    APP_ENV: str = field(default_factory=lambda: os.getenv("APP_ENV", "development"))
+    DEBUG: bool = field(default_factory=lambda: os.getenv("DEBUG", "true").lower() == "true")
 
     # ----- LLM Ayarları -----
     # OpenAI-compatible endpoint (Ollama Cloud, vLLM, Groq, Together vs.)
     LLM_BASE_URL: str = field(default_factory=lambda: os.getenv("LLM_BASE_URL", "https://ollama.com/v1"))
-    LLM_API_KEY: str = field(default_factory=lambda: os.getenv("LLM_API_KEY", "ollama"))
-    LLM_MODEL: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "deepseek-v2:671b"))
-    LLM_TEMPERATURE: float = 0.3
+    OLLAMA_API_KEY: str = field(default_factory=lambda: os.getenv("OLLAMA_API_KEY", "ollama"))
+    LLM_MODEL: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "deepseek-v3.1:671b-cloud"))
+    LLM_TEMPERATURE: float = field(default_factory=lambda: float(os.getenv("LLM_TEMPERATURE", "0.3")))
+    DEFAULT_LLM_PROVIDER: str = field(default_factory=lambda: os.getenv("DEFAULT_LLM_PROVIDER", "ollama"))
 
     # ----- Embedding Ayarları -----
     # Ollama yerel sunucu
@@ -125,8 +123,8 @@ class AppConfig:
     HF_EMBED_MODEL: str = field(default_factory=lambda: os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2"))
 
     # Chunking settings
-    CHUNK_SIZE: int = 1000
-    CHUNK_OVERLAP: int = 200
+    CHUNK_SIZE: int = field(default_factory=lambda: int(os.getenv("CHUNK_SIZE", "1000")))
+    CHUNK_OVERLAP: int = field(default_factory=lambda: int(os.getenv("CHUNK_OVERLAP", "200")))
 
     # File settings
     ALLOWED_FILE_TYPES: List[str] = field(default_factory=lambda: ["pdf", "txt", "docx", "html", "md"])
@@ -141,11 +139,17 @@ class AppConfig:
     MESSAGE_SUMMARY_THRESHOLD: int = 50
 
     # Database settings
-    DB_PATH: str = "data/app.db"
-    CHROMA_PERSIST_DIR: str = "data/chroma"
+    DATA_DIR: str = field(default_factory=lambda: os.getenv("DATA_DIR", "data"))
+    DB_PATH: str = field(default_factory=lambda: os.getenv("DB_PATH", "data/app.db"))
+    CHROMA_PERSIST_DIR: str = field(default_factory=lambda: os.getenv("CHROMA_PERSIST_DIR", "data/chroma"))
 
     # UI settings
-    SIDEBAR_DEFAULT_OPEN: bool = True
+    SIDEBAR_DEFAULT_OPEN: bool = field(default_factory=lambda: os.getenv("SIDEBAR_DEFAULT_OPEN", "true").lower() == "true")
+    DEFAULT_PAGE: str = field(default_factory=lambda: os.getenv("DEFAULT_PAGE", "💬 Chat"))
+
+    # ----- Security Settings -----
+    RATE_LIMIT_ENABLED: bool = field(default_factory=lambda: os.getenv("RATE_LIMIT_ENABLED", "false").lower() == "true")
+    RATE_LIMIT_RPM: int = field(default_factory=lambda: int(os.getenv("RATE_LIMIT_RPM", "60")))
 
     # Preference weights
     DEFAULT_PREFERENCE_WEIGHTS: Dict[str, float] = field(default_factory=lambda: {
@@ -156,8 +160,32 @@ class AppConfig:
     })
 
     def __post_init__(self):
+        """Initialize paths and validate configuration."""
+        # Create directories
         Path(self.DB_PATH).parent.mkdir(parents=True, exist_ok=True)
         Path(self.CHROMA_PERSIST_DIR).mkdir(parents=True, exist_ok=True)
+        
+        # Validate settings
+        self._validate()
+
+    def _validate(self) -> None:
+        """Validate configuration settings."""
+        if self.CHUNK_SIZE <= 0:
+            raise ValueError("CHUNK_SIZE must be positive")
+        if self.CHUNK_OVERLAP >= self.CHUNK_SIZE:
+            raise ValueError("CHUNK_OVERLAP must be less than CHUNK_SIZE")
+        if self.MAX_FILE_SIZE_BYTES <= 0:
+            raise ValueError("MAX_FILE_SIZE_BYTES must be positive")
+        if self.RATE_LIMIT_RPM <= 0:
+            raise ValueError("RATE_LIMIT_RPM must be positive")
+
+    def is_production(self) -> bool:
+        """Check if running in production mode."""
+        return self.APP_ENV.lower() == "production"
+
+    def is_development(self) -> bool:
+        """Check if running in development mode."""
+        return self.APP_ENV.lower() == "development"
 
 
 # LLM Model seçenekleri
