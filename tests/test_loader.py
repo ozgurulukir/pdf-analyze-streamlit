@@ -1,7 +1,8 @@
 """Tests for core loader module."""
-import unittest
-from unittest.mock import Mock, patch, MagicMock
+
 import io
+import unittest
+from unittest.mock import MagicMock, Mock, patch
 
 from app.core.loader import DocumentLoader
 
@@ -13,7 +14,7 @@ class TestDocumentLoader(unittest.TestCase):
         """Set up test fixtures."""
         self.mock_pdf_content = b"%PDF-1.4 mock content"
 
-    @patch('asyncio.get_event_loop')
+    @patch("asyncio.get_event_loop")
     def test_load_file_success(self, mock_get_event_loop):
         """Test successful file loading via Kreuzberg (BytesIO)."""
         mock_loop = Mock()
@@ -22,24 +23,22 @@ class TestDocumentLoader(unittest.TestCase):
         mock_loop.run_until_complete.return_value = mock_result
         mock_get_event_loop.return_value = mock_loop
 
-        import sys
         mock_kreuzberg = MagicMock()
-        with patch.dict('sys.modules', {'kreuzberg': mock_kreuzberg}):
+        with patch.dict("sys.modules", {"kreuzberg": mock_kreuzberg}):
             file_io = io.BytesIO(b"mock content")
             file_io.name = "test.pdf"
             result = DocumentLoader.load_file(file_io)
             self.assertEqual(result, "Sample text content")
 
-    @patch('asyncio.get_event_loop')
+    @patch("asyncio.get_event_loop")
     def test_load_file_error(self, mock_get_event_loop):
         """Test file loading error handling."""
         mock_loop = Mock()
         mock_loop.run_until_complete.side_effect = Exception("Load Error")
         mock_get_event_loop.return_value = mock_loop
 
-        import sys
         mock_kreuzberg = MagicMock()
-        with patch.dict('sys.modules', {'kreuzberg': mock_kreuzberg}):
+        with patch.dict("sys.modules", {"kreuzberg": mock_kreuzberg}):
             file_io = io.BytesIO(b"mock content")
             file_io.name = "test.pdf"
 
@@ -47,7 +46,7 @@ class TestDocumentLoader(unittest.TestCase):
             result = DocumentLoader.load_file(file_io)
             self.assertEqual(result, "")
 
-    @patch('asyncio.get_event_loop')
+    @patch("asyncio.get_event_loop")
     def test_load_file_path_success(self, mock_get_event_loop):
         """Test successful file loading via Kreuzberg (File Path)."""
         mock_loop = Mock()
@@ -56,9 +55,8 @@ class TestDocumentLoader(unittest.TestCase):
         mock_loop.run_until_complete.return_value = mock_result
         mock_get_event_loop.return_value = mock_loop
 
-        import sys
         mock_kreuzberg = MagicMock()
-        with patch.dict('sys.modules', {'kreuzberg': mock_kreuzberg}):
+        with patch.dict("sys.modules", {"kreuzberg": mock_kreuzberg}):
             result = DocumentLoader.load_file("dummy/path.pdf")
             self.assertEqual(result, "File path content")
 
@@ -74,7 +72,7 @@ class TestDocumentLoader(unittest.TestCase):
         mock_txt.getvalue.return_value = b"text content"
         mock_txt.size = 500
 
-        with patch('app.core.loader.DocumentLoader.load_file') as mock_load_file:
+        with patch("app.core.loader.DocumentLoader.load_file") as mock_load_file:
             mock_load_file.side_effect = ["PDF text", "TXT text"]
             documents = DocumentLoader.load_documents([mock_pdf, mock_txt])
 
@@ -89,7 +87,7 @@ class TestDocumentLoader(unittest.TestCase):
         mock_file.getvalue.return_value = b""
         mock_file.size = 0
 
-        with patch('app.core.loader.DocumentLoader.load_file', return_value=""):
+        with patch("app.core.loader.DocumentLoader.load_file", return_value=""):
             documents = DocumentLoader.load_documents([mock_file])
             self.assertEqual(len(documents), 0)
 
@@ -134,5 +132,5 @@ class TestDocumentLoader(unittest.TestCase):
         self.assertEqual(error_msg, "Dosya boyutu çok büyük (max 10MB)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
