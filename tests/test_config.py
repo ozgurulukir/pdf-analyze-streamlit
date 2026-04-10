@@ -1,6 +1,8 @@
 import os
 import unittest
+
 from app.core.config import AppConfig
+
 
 class TestConfig(unittest.TestCase):
     def test_ollama_api_key_default(self):
@@ -15,6 +17,7 @@ class TestConfig(unittest.TestCase):
         # Restore environment variable
         if original_val is not None:
             os.environ["OLLAMA_API_KEY"] = original_val
+
 
 if __name__ == "__main__":
     unittest.main()

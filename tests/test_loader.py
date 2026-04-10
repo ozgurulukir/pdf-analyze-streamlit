@@ -1,7 +1,7 @@
 """Tests for core loader module."""
-import unittest
-from unittest.mock import Mock, patch, MagicMock
 import io
+import unittest
+from unittest.mock import Mock, patch
 
 from app.core.loader import DocumentLoader
 

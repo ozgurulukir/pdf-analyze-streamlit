@@ -1,7 +1,8 @@
 """Pytest configuration and fixtures."""
 import os
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, patch
 
 # Set environment variables for testing
 os.environ["OPENAI_API_KEY"] = "sk-test-key"
