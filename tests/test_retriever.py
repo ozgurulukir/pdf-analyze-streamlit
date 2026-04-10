@@ -1,4 +1,5 @@
 """Tests for retriever module."""
+
 import unittest
 from unittest.mock import Mock, patch, MagicMock
 
@@ -17,8 +18,7 @@ class TestRetrieverFactory(unittest.TestCase):
 
         self.mock_documents = [
             Document(
-                page_content="Sample document content",
-                metadata={"source": "test.pdf"}
+                page_content="Sample document content", metadata={"source": "test.pdf"}
             )
         ]
 
@@ -28,7 +28,7 @@ class TestRetrieverFactory(unittest.TestCase):
             self.mock_documents,
             chunk_size=100,
             chunk_overlap=20,
-            split_method="recursive"
+            split_method="recursive",
         )
 
         self.assertIsInstance(result, list)
@@ -37,10 +37,7 @@ class TestRetrieverFactory(unittest.TestCase):
     def test_split_documents_token(self):
         """Test document splitting with token method."""
         result = self.factory.split_documents(
-            self.mock_documents,
-            chunk_size=100,
-            chunk_overlap=20,
-            split_method="token"
+            self.mock_documents, chunk_size=100, chunk_overlap=20, split_method="token"
         )
 
         self.assertIsInstance(result, list)
@@ -48,22 +45,18 @@ class TestRetrieverFactory(unittest.TestCase):
     def test_split_documents_unknown_method(self):
         """Test document splitting with unknown method defaults to recursive."""
         result = self.factory.split_documents(
-            self.mock_documents,
-            split_method="unknown_method"
+            self.mock_documents, split_method="unknown_method"
         )
 
         self.assertIsInstance(result, list)
 
-    @patch('app.core.retriever.FAISS')
-    @patch('app.core.retriever.OpenAIEmbeddings')
+    @patch("app.core.retriever.FAISS")
+    @patch("app.core.retriever.OpenAIEmbeddings")
     def test_create_vectorstore_success(self, mock_embeddings, mock_faiss):
         """Test successful vectorstore creation."""
         mock_faiss.from_documents.return_value = Mock()
 
-        result = self.factory.create_vectorstore(
-            self.mock_documents,
-            embeddings=Mock()
-        )
+        result = self.factory.create_vectorstore(self.mock_documents, embeddings=Mock())
 
         self.assertIsNotNone(result)
         mock_faiss.from_documents.assert_called_once()
@@ -81,8 +74,7 @@ class TestRetrieverFactory(unittest.TestCase):
         mock_vectorstore.as_retriever.return_value = Mock()
 
         retriever = self.factory.get_retriever(
-            mock_vectorstore,
-            retriever_type="similarity"
+            mock_vectorstore, retriever_type="similarity"
         )
 
         mock_vectorstore.as_retriever.assert_called_once()
@@ -92,10 +84,7 @@ class TestRetrieverFactory(unittest.TestCase):
         mock_vectorstore = Mock()
         mock_vectorstore.as_retriever.return_value = Mock()
 
-        retriever = self.factory.get_retriever(
-            mock_vectorstore,
-            retriever_type="mmr"
-        )
+        retriever = self.factory.get_retriever(mock_vectorstore, retriever_type="mmr")
 
         mock_vectorstore.as_retriever.assert_called_once()
 
@@ -104,10 +93,7 @@ class TestRetrieverFactory(unittest.TestCase):
         mock_vectorstore = Mock()
         mock_vectorstore.as_retriever.return_value = Mock()
 
-        retriever = self.factory.get_retriever(
-            mock_vectorstore,
-            retriever_type="svm"
-        )
+        retriever = self.factory.get_retriever(mock_vectorstore, retriever_type="svm")
 
         mock_vectorstore.as_retriever.assert_called_once()
 
@@ -117,8 +103,8 @@ class TestQAChain(unittest.TestCase):
 
     def test_qa_chain_class_exists(self):
         """Test that QAChain class exists and has required methods."""
-        self.assertTrue(hasattr(QAChain, 'create'))
-        self.assertTrue(hasattr(QAChain, 'generate_questions'))
+        self.assertTrue(hasattr(QAChain, "create"))
+        self.assertTrue(hasattr(QAChain, "generate_questions"))
         self.assertTrue(callable(QAChain.create))
         self.assertTrue(callable(QAChain.generate_questions))
 
@@ -126,12 +112,13 @@ class TestQAChain(unittest.TestCase):
         """Test that generate_questions returns a list."""
         # This test just verifies the method signature
         import inspect
+
         sig = inspect.signature(QAChain.generate_questions)
         params = list(sig.parameters.keys())
-        self.assertIn('chain', params)
-        self.assertIn('text', params)
-        self.assertIn('num_questions', params)
+        self.assertIn("chain", params)
+        self.assertIn("text", params)
+        self.assertIn("num_questions", params)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

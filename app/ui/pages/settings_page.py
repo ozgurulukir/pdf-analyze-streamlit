@@ -1,15 +1,18 @@
 """Settings page component."""
+
 import streamlit as st
 from app.ui.sidebar import (
     render_llm_settings,
     render_embedding_settings,
-    render_data_settings
+    render_data_settings,
 )
 from app.ui.callbacks import reset_system_callback
 
+
 def render_settings_page():
     """Render the settings page with tabbed interface."""
-    st.markdown("""
+    st.markdown(
+        """
     <div style="
         display: flex; align-items: center; gap: 14px;
         padding: 1.25rem 1.5rem;
@@ -30,13 +33,13 @@ def render_settings_page():
             <div style="font-size: 0.78rem; color: #64748b; margin-top: 1px;">Model, embedding ve veri parametrelerini yapılandırın</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-    tab_llm, tab_embed, tab_data = st.tabs([
-        "🤖 LLM",
-        "🔢 Embedding",
-        "📁 Veri & Sistem"
-    ])
+    tab_llm, tab_embed, tab_data = st.tabs(
+        ["🤖 LLM", "🔢 Embedding", "📁 Veri & Sistem"]
+    )
 
     settings = {}
 
@@ -48,7 +51,7 @@ def render_settings_page():
 
     with tab_data:
         settings.update(render_data_settings())
-        
+
         # Execute Hard Reset if button clicked (from render_data_settings)
         if settings.get("reset_system"):
             reset_system_callback()

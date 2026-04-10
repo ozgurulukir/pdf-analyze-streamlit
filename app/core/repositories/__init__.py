@@ -1,4 +1,5 @@
 """Repository module initialization."""
+
 from app.core.repositories.interfaces import (
     WorkspaceRepository,
     FileRepository,

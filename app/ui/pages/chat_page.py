@@ -6,9 +6,11 @@ from app.core.chroma import ChromaManager, EmbeddingManager
 from app.core.services.chat_service import ChatService
 from app.core.config import AppConfig
 
+
 def render_empty_chat():
     """Render premium empty chat state with animated hint."""
-    st.markdown("""
+    st.markdown(
+        """
     <div class="empty-state-container" style="text-align:center; padding: 3rem 1rem;">
         <div style="
             width: 72px; height: 72px;
@@ -48,7 +50,9 @@ def render_empty_chat():
             ">📊 Kaynak Gösterimi</span>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_typing_indicator():
@@ -59,7 +63,8 @@ def render_typing_indicator():
 def render_chat_page(settings):
     """Render the chat interface with legacy features."""
     # Premium Page Header
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="
         display: flex; align-items: center; gap: 14px;
         padding: 1.25rem 1.5rem;
@@ -84,9 +89,10 @@ def render_chat_page(settings):
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-    
     # Chat Messages Container
     if not st.session_state.chat_history:
         render_empty_chat()
@@ -95,16 +101,17 @@ def render_chat_page(settings):
             avatar = "🤖" if msg.role == "assistant" else "👤"
             with st.chat_message(msg.role, avatar=avatar):
                 st.markdown(msg.content)
-                if hasattr(msg, 'sources') and msg.sources:
+                if hasattr(msg, "sources") and msg.sources:
                     with st.expander("📌 Kaynaklar"):
                         for s in msg.sources:
                             st.caption(s)
-    
+
     # Bottom spacing for fixed input
     st.markdown("<div style='height: 120px;'></div>", unsafe_allow_html=True)
-    
+
     # Quick Prompts with Fragment isolation
     if st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value):
+
         @st.fragment
         def render_quick_prompts_fragment():
             with stylable_container(
@@ -118,11 +125,11 @@ def render_chat_page(settings):
                             # Force prompt injection for streaming handler below
                             st.session_state[SessionKeys.LAST_PROMPT.value] = p
                             st.rerun()
-        
+
         render_quick_prompts_fragment()
 
     prompt = st.chat_input("Belgelerinize bir soru sorun...")
-    
+
     # Handle both direct input and quick prompt buttons
     final_prompt = prompt or st.session_state.get(SessionKeys.LAST_PROMPT.value)
     if SessionKeys.LAST_PROMPT.value in st.session_state:
@@ -132,7 +139,7 @@ def render_chat_page(settings):
         # 1. Add user message
         user_msg = Message(role="user", content=final_prompt)
         st.session_state.chat_history.append(user_msg)
-        
+
         # We rerun to show the user message immediately, then handle processing
         st.session_state[SessionKeys.STREAMING_PROMPT.value] = final_prompt
         st.rerun()
@@ -140,11 +147,11 @@ def render_chat_page(settings):
     # Streaming Handler (outside the main prompt detection to handle the rerun)
     if SessionKeys.STREAMING_PROMPT.value in st.session_state:
         streaming_prompt = st.session_state.pop(SessionKeys.STREAMING_PROMPT.value)
-        
+
         db = DatabaseManager()
         config = AppConfig()
         workspace_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
-        
+
         if not workspace_id:
             st.warning("⚠️ Lütfen önce bir çalışma alanı seçin veya oluşturun.")
         else:
@@ -154,32 +161,43 @@ def render_chat_page(settings):
             else:
                 # Initialize RAG dependencies
                 chroma = ChromaManager(
-                    persist_directory=st.session_state.get(SessionKeys.CHROMA_PATH.value, config.CHROMA_PERSIST_DIR)
+                    persist_directory=st.session_state.get(
+                        SessionKeys.CHROMA_PATH.value, config.CHROMA_PERSIST_DIR
+                    )
                 )
                 embedding = EmbeddingManager(
-                    use_huggingface=st.session_state.get(SessionKeys.USE_HUGGINGFACE.value, False),
-                    ollama_model=st.session_state.get(SessionKeys.EMBED_MODEL.value, "nomic-embed-text"),
-                    ollama_url=st.session_state.get(SessionKeys.OLLAMA_URL.value, "http://localhost:11434"),
-                    hf_model=st.session_state.get(SessionKeys.HF_EMBED_MODEL.value, "sentence-transformers/all-MiniLM-L6-v2")
+                    use_huggingface=st.session_state.get(
+                        SessionKeys.USE_HUGGINGFACE.value, False
+                    ),
+                    ollama_model=st.session_state.get(
+                        SessionKeys.EMBED_MODEL.value, "nomic-embed-text"
+                    ),
+                    ollama_url=st.session_state.get(
+                        SessionKeys.OLLAMA_URL.value, "http://localhost:11434"
+                    ),
+                    hf_model=st.session_state.get(
+                        SessionKeys.HF_EMBED_MODEL.value,
+                        "sentence-transformers/all-MiniLM-L6-v2",
+                    ),
                 )
-                
+
                 chat_service = ChatService(db, chroma, embedding)
-                
+
                 with st.chat_message("assistant", avatar="🤖"):
                     status_placeholder = st.empty()
                     message_placeholder = st.empty()
                     full_response = ""
                     sources = []
-                    
+
                     try:
                         for event in chat_service.stream_response(
                             question=streaming_prompt,
                             workspace=workspace,
-                            llm_config=settings
+                            llm_config=settings,
                         ):
                             event_type = event.get("type")
                             content = event.get("content")
-                            
+
                             if event_type == "status":
                                 status_placeholder.markdown(f"*{content}*")
                             elif event_type == "token":
@@ -192,27 +210,34 @@ def render_chat_page(settings):
                             elif event_type == "error":
                                 st.error(f"❌ RAG Hatası: {content}")
                                 break
-                        
+
                         message_placeholder.markdown(full_response)
-                        
+
                         # Save assistant message (CLEAN content only)
-                        assistant_msg = Message(role="assistant", content=full_response, sources=sources)
+                        assistant_msg = Message(
+                            role="assistant", content=full_response, sources=sources
+                        )
                         st.session_state.chat_history.append(assistant_msg)
-                        
+
                         # Save to DB
-                        msg_db_user = Message(role="user", content=streaming_prompt, workspace_id=workspace.id)
+                        msg_db_user = Message(
+                            role="user",
+                            content=streaming_prompt,
+                            workspace_id=workspace.id,
+                        )
                         db.add_message(msg_db_user)
                         msg_db_assistant = Message(
-                            role="assistant", 
-                            content=full_response, 
-                            sources=sources, 
-                            workspace_id=workspace.id
+                            role="assistant",
+                            content=full_response,
+                            sources=sources,
+                            workspace_id=workspace.id,
                         )
                         db.add_message(msg_db_assistant)
-                        
+
                     except Exception as e:
                         st.error(f"Hata: {str(e)}")
                         import traceback
+
                         st.code(traceback.format_exc())
-                
+
                 st.rerun()
