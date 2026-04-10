@@ -108,7 +108,7 @@ class AppConfig:
     # ----- LLM Ayarları -----
     # OpenAI-compatible endpoint (Ollama Cloud, vLLM, Groq, Together vs.)
     LLM_BASE_URL: str = field(default_factory=lambda: os.getenv("LLM_BASE_URL", "https://ollama.com/v1"))
-    OLLAMA_API_KEY: str = field(default_factory=lambda: os.getenv("OLLAMA_API_KEY", "ollama"))
+    OLLAMA_API_KEY: str = field(default_factory=lambda: os.getenv("OLLAMA_API_KEY", ""))
     LLM_MODEL: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "deepseek-v3.1:671b-cloud"))
     LLM_TEMPERATURE: float = field(default_factory=lambda: float(os.getenv("LLM_TEMPERATURE", "0.3")))
     DEFAULT_LLM_PROVIDER: str = field(default_factory=lambda: os.getenv("DEFAULT_LLM_PROVIDER", "ollama"))

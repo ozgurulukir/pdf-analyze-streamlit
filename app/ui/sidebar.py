@@ -34,7 +34,7 @@ def render_llm_settings() -> Dict[str, Any]:
     )
     
     # Standardize session state keys
-    current_api_key = st.session_state.get(SessionKeys.OLLAMA_API_KEY.value, "ollama")
+    current_api_key = st.session_state.get(SessionKeys.OLLAMA_API_KEY.value, "")
     
     # Initialization of internal widgets to avoid state conflict
     if "llm_base_url_input" not in st.session_state:
