@@ -96,7 +96,7 @@ def split_texts(text, chunk_size, overlap, split_method):
 @st.cache_resource
 def get_embeddings(embedding_option, openai_api_key):
     if embedding_option == "OpenAI Embeddings":
-        return OpenAIEmbeddings()
+        return OpenAIEmbeddings(openai_api_key=openai_api_key)
     elif embedding_option == "HuggingFace Embeddings(slower)":
         return HuggingFaceEmbeddings()
     return None
