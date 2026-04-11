@@ -152,8 +152,7 @@ def main():
         """
         <style>
 
-        #MainMenu {visibility: hidden;
-        # }
+        #MainMenu {visibility: hidden;}
             footer {visibility: hidden;
             }
             .css-card {
