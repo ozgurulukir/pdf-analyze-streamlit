@@ -267,7 +267,7 @@ def main():
 
         # Embed using OpenAI embeddings
             # Embed using OpenAI embeddings or HuggingFace embeddings
-        embeddings = get_embeddings(embedding_option, openai_api_key)
+        embeddings = get_embeddings(embedding_option, openai_api_key if embedding_option == "OpenAI Embeddings" else None)
 
         retriever = create_retriever(embeddings, splits, retriever_type)
 
