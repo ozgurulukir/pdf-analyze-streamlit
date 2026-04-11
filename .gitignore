@@ -24,36 +24,39 @@ wheels/
 venv/
 env/
 ENV/
-.venv
+.venv/
+.env
+.env.local
 
-# IDE
+# IDE & OS
 .vscode/
 .idea/
+.zed/
 *.swp
 *.swo
 *~
+.DS_Store
+Thumbs.db
 
 # Streamlit
 .streamlit/static/
 .streamlit/.streamlit/
 
-# Environment
-.env
-.env.local
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Testing
+# Testing & Coverage
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 
-# Cache
-.cache/
-*.log
+# Local Data & Database (IMPORTANT: Do not commit sensitive/local data)
 data/
+chroma_db/
+logs/
 developer/
-.zed/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Misc
+*.log
+.cache/

@@ -1,8 +1,10 @@
 import sys
+
 sys.path.insert(0, ".")
 
 # Check job status directly in database
 import sqlite3
+
 from app.core.config import AppConfig
 
 config = AppConfig()

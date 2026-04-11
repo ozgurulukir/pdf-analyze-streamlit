@@ -1,77 +1,54 @@
-# PDF Analyzer Pro 🎯
+# Doc Analyzer Pro 🎯
 
-AI tabanlı, modern ve modüler bir belge analiz uygulaması. Streamlit, LangChain ve Ollama/OpenAI teknolojileri kullanılarak geliştirilmiştir.
+AI tabanlı, modern ve modüler bir belge analiz uygulaması. Streamlit, LangChain ve Ollama/OpenAI teknolojileri kullanılarak geliştirilmiştir. Artık PDF'in yanı sıra DOCX, TXT ve daha birçok formatı desteklemektedir.
 
 ## 🚀 Öne Çıkan Özellikler
 
 - 📁 **Gelişmiş Çalışma Alanı Yönetimi**: Belgelerinizi farklı çalışma alanlarında organize edin.
-- 📄 **Kreuzberg Entegrasyonu**: PDF, DOCX, Resim ve daha birçok format dökümandan yüksek doğrulukla metin çıkarımı.
+- 📄 **Üstün Metin Çıkarımı**: PDF, DOCX, Resim ve daha birçok format dökümandan yüksek doğrulukla metin çıkarımı.
 - 💬 **Gerçek Zamanlı Sohbet**: Streaming (akış) desteği ile gecikmesiz yanıtlar.
-- 🧠 **Esnek LLM Gecitleri**: Ollama Cloud, Yerel Ollama veya herhangi bir OpenAI uyumlu API kullanım imkanı.
-- 🔢 **Çoklu Embedding Desteği**: Yerel Ollama modelleri veya HuggingFace (transformer) modelleri arasında geçiş.
-- 🎨 **Premium UI**: Modern Indigo-Dark tema ve tilted-T layout ile üst düzey kullanıcı deneyimi.
-- 📊 **Q&A Dashboard**: Önceki sorulardan elde edilen içgörüleri yönetin ve oylayın.
+- 🧠 **Esnek LLM Geçitleri**: Ollama Cloud, Yerel Ollama veya herhangi bir OpenAI uyumlu API kullanım imkanı.
+- 🔢 **Çoklu Embedding Desteği**: Yerel Ollama modelleri veya HuggingFace modelleri arasında geçiş.
+- 🎨 **Modern UI**: Streamlit 1.40+ native bileşenleri (dialog, popover, status) ile optimize edilmiş kullanıcı deneyimi.
 
 ## 🏗️ Mimari Yapı
 
 Uygulama, sürdürülebilirlik ve tip güvenliği için dikey katmanlı bir mimari kullanır:
 
-- **Core Layer**: 
-    - `database.py`: SQLite odaklı veri yönetimi.
-    - `chroma.py`: ChromaDB vektör veritabanı yönetimi.
-    - `rag.py`: RAG (Retrieval-Augmented Generation) operasyonları ve istem şablonları.
-    - `models.py`: Merkezi veri modelleri ve dataclass'lar.
-- **Service Layer**: 
-    - `file_service.py`: Belge yükleme ve OCR/Metin çıkarım servisleri.
-    - `chat_service.py`: Sohbet ve RAG isteklerinin UI'dan bağımsız yönetimi.
-- **UI Layer**: 
-    - `main.py`: Uygulama giriş noktası ve session yönetimi.
-    - `pages/`: Modüler sayfa yapıları (Sohbet, Belgeler, Analiz, Ayarlar).
-    - `callbacks.py`: UI olaylarını servislere aktaran köprüler.
+- **Core Layer**: Veritabanı (SQLite), Vektör DB (ChromaDB) ve RAG operasyonları.
+- **Service Layer**: Belge işleme ve sohbet servisleri.
+- **UI Layer**: Streamlit tabanlı modüler sayfalar ve navigasyon.
 
 ## 📦 Kurulum ve Çalıştırma
 
 ### Gereksinimler
-- Python 3.10+
+- Python 3.12+
+- [uv](https://github.com/astral-sh/uv) (Astral Python paket yöneticisi)
 - Ollama (Yerel kullanım için) veya OpenAI-uyumlu API anahtarı.
 
 ### Adımlar
 
-1. **Hazırlık**:
+1. **Bağımlılıkları Senkronize Edin**:
    ```bash
-   # Sanal ortam oluşturun
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   uv sync
    ```
 
-2. **Bağımlılıkları Yükleyin**:
+2. **Uygulamayı Çalıştırın**:
    ```bash
-   pip install -r requirements.txt
+   uv run streamlit run app/main.py
    ```
 
-3. **Çalıştırın**:
+3. **Testleri Çalıştırın**:
    ```bash
-   streamlit run app/main.py
+   uv run pytest
    ```
-
-## 🔧 Kullanılan Teknolojiler
-
-| Kategori | Teknoloji |
-| :--- | :--- |
-| **Frontend** | Streamlit 1.40+ |
-| **Orchestration** | LangChain 0.3+ |
-| **Vector DB** | ChromaDB |
-| **Extraction** | Kreuzberg |
-| **Embedding** | Ollama / HuggingFace |
-| **Metreics** | Plotly |
 
 ## 🛠️ Geliştirici Notları
 
-Proje, **Python Best Practices** prensiplerine göre refaktör edilmiştir:
-- Tüm metodlar tip ipuçları (`Type Hints`) ile donatılmıştır.
-- Google-style docstring formatı kullanılmıştır.
-- Merkezi bir `logger` ve özel `AppError` sınıfları ile hata yönetimi optimize edilmiştir.
-- `SessionKeys` Enum yapısı ile state yönetimi tip güvenli hale getirilmiştir.
+Proje, **Astral uv** standartlarına göre paketlenmiştir:
+- Tüm bağımlılıklar `pyproject.toml` dosyasında yönetilir.
+- `uv.lock` ile tekrarlanabilir ortamlar sağlanır.
+- Geliştirme araçları (pytest, ruff, black) `dev` bağımlılık grubunda tanımlıdır.
 
 ---
 ⭐ Eğer bu projeyi faydalı buluyorsanız lütfen bir yıldız bırakmayı unutmayın!

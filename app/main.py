@@ -1,4 +1,5 @@
-"""Main application orchestrator - PDF Analyzer Pro."""
+"""Main application orchestrator - Doc Analyzer Pro."""
+
 import os
 import sys
 
@@ -7,22 +8,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 
-from app.core import DatabaseManager, UserPreferences, get_job_queue
-from app.core.constants import SessionKeys
+from app.core import DatabaseManager
 from app.core.config import AppConfig
+from app.core.constants import SessionKeys
+from app.core.exceptions import DatabaseError
 from app.core.logger import logger
 from app.core.router import resolve_page
-from app.ui.layout import apply_layout_styles
-from app.ui.header import render_header, render_navigation
 from app.ui.callbacks import load_workspaces
+from app.ui.header import render_header
+from app.ui.layout import apply_layout_styles
 from app.ui.sidebar import render_sidebar_content
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="PDF Analyzer Pro",
+    page_title="Doc Analyzer Pro",
     page_icon="🎯",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 
@@ -32,11 +34,17 @@ def init_session_state() -> None:
     Loads configuration from database and merges with application defaults.
     """
     logger.info("Initializing session state")
-    
-    db = DatabaseManager()
-    prefs = db.get_preferences()
+
+    try:
+        db = DatabaseManager()
+        prefs = db.preferences.get()
+    except DatabaseError as e:
+        logger.error(f"Failed to load preferences from DB: {e}")
+        from app.core.models import UserPreferences
+        prefs = UserPreferences()
+
     config = AppConfig()
-    
+
     # Base defaults
     defaults = {
         SessionKeys.ACTIVE_WORKSPACE_ID.value: None,
@@ -63,24 +71,24 @@ def init_session_state() -> None:
         SessionKeys.CHUNK_OVERLAP.value: config.CHUNK_OVERLAP,
         SessionKeys.THEME.value: "dark",
     }
-    
+
     # Merge persisted config into defaults
     if prefs.config:
         for key_name, val in prefs.config.items():
             if key_name in defaults:
                 defaults[key_name] = val
-    
+
     for key, value in defaults.items():
-        if key not in st.session_state:
+        if key not in st.session_state or st.session_state[key] is None:
             st.session_state[key] = value
-    
+
     logger.debug(f"Session state initialized with {len(defaults)} keys")
 
 
 def main() -> None:
     """
     Main application entry point.
-    
+
     Execution flow:
     1. Initialize session state
     2. Apply layout styles
@@ -89,25 +97,22 @@ def main() -> None:
     5. Render sidebar
     6. Route to the selected page
     """
-    logger.info("Starting PDF Analyzer Pro application")
-    
+    logger.info("Starting Doc Analyzer Pro application")
+
     # 1. Initialize session state
     init_session_state()
     apply_layout_styles()
-    
+
     # 2. Header & Page Navigation
-    render_header()
-    current_page = st.session_state[SessionKeys.CURRENT_PAGE.value]
-    selected_page = render_navigation(current_page)
-    st.session_state[SessionKeys.CURRENT_PAGE.value] = selected_page
-    
+    selected_page = render_header()
+
     # 3. Sidebar & Global State
     load_workspaces()
     settings = render_sidebar_content()
-    
+
     # 4. Dynamic Page Routing (using router module)
     resolve_page(selected_page, settings)
-    
+
     logger.info(f"Page '{selected_page}' rendered successfully")
 
 

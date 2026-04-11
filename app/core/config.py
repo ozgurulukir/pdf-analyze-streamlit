@@ -1,191 +1,175 @@
 """Application configuration and settings."""
+
 import os
-import json
-import requests
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+
+import requests
 from dotenv import load_dotenv
 
 # Load .env
 load_dotenv()
 
 
-def get_ollama_models(base_url: str = "http://localhost:11434") -> List[Dict[str, str]]:
-    """
-    Fetch available models from Ollama API.
-    
-    Args:
-        base_url: Ollama server URL
-        
-    Returns:
-        List of model dictionaries with 'label' and 'value' keys
-    """
+from pydantic import Field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+@dataclass
+class OllamaModel:
+    label: str
+    value: str
+
+def get_ollama_models(base_url: str = "http://localhost:11434") -> list[dict[str, str]]:
+    """Fetch available models from Ollama API."""
     default_models = [
         {"label": "nomic-embed-text (varsayılan)", "value": "nomic-embed-text"},
         {"label": "mxbai-embed-large", "value": "mxbai-embed-large"},
         {"label": "all-minilm", "value": "all-minilm"},
         {"label": "bge-m3", "value": "bge-m3"},
     ]
-    
     try:
         response = requests.get(f"{base_url}/api/tags", timeout=5)
         if response.status_code == 200:
             data = response.json()
             models = data.get("models", [])
             if models:
-                # Extract model names and create options
                 model_options = []
                 for m in models:
                     name = m.get("name", "")
-                    model_options.append({
-                        "label": f"{name} (indirilmiş)",
-                        "value": name
-                    })
+                    model_options.append({"label": f"{name} (indirilmiş)", "value": name})
                 return model_options
     except Exception as e:
         print(f"Ollama API hatası: {e}")
-    
     return default_models
 
-
-def get_ollama_llm_models(base_url: str = "http://localhost:11434") -> List[Dict[str, str]]:
-    """
-    Fetch available LLM models from Ollama API.
-    
-    Args:
-        base_url: Ollama server URL
-        
-    Returns:
-        List of model dictionaries with 'label' and 'value' keys
-    """
+def get_ollama_llm_models(base_url: str = "http://localhost:11434") -> list[dict[str, str]]:
+    """Fetch available LLM models from Ollama API."""
     default_models = [
         {"label": "DeepSeek V2 (varsayılan)", "value": "deepseek-v2:671b"},
         {"label": "Qwen 2.5", "value": "qwen2.5:7b"},
         {"label": "Llama 3.1", "value": "llama3.1:8b"},
         {"label": "Mistral", "value": "mistral:7b"},
     ]
-    
     try:
         response = requests.get(f"{base_url}/api/tags", timeout=5)
         if response.status_code == 200:
             data = response.json()
             models = data.get("models", [])
             if models:
-                # Filter for likely LLM models (exclude embedding models)
                 embed_keywords = ["embed", "embedding", "nomic-embed"]
                 llm_models = []
                 for m in models:
                     name = m.get("name", "")
-                    # Skip embedding models
                     if any(kw in name.lower() for kw in embed_keywords):
                         continue
-                    
                     size_gb = m.get("size", 0) / (1024**3)
-                    llm_models.append({
-                        "label": f"{name} ({size_gb:.1f} GB)",
-                        "value": name
-                    })
+                    llm_models.append({"label": f"{name} ({size_gb:.1f} GB)", "value": name})
                 if llm_models:
                     return llm_models
     except Exception as e:
         print(f"Ollama API hatası: {e}")
-    
     return default_models
 
 
-@dataclass
-class AppConfig:
-    """Application configuration with environment variable support."""
+class AppConfig(BaseSettings):
+    """Application configuration with Pydantic v2 and environment variable support."""
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
-    # App settings
-    APP_TITLE: str = field(default_factory=lambda: os.getenv("APP_NAME", "PDF Analyzer Pro"))
+    # --- App Settings ---
+    APP_TITLE: str = Field(default="Doc Analyzer Pro", alias="APP_NAME")
     APP_ICON: str = "📄"
     APP_DESCRIPTION: str = "AI-Powered Document Analysis"
-    APP_ENV: str = field(default_factory=lambda: os.getenv("APP_ENV", "development"))
-    DEBUG: bool = field(default_factory=lambda: os.getenv("DEBUG", "true").lower() == "true")
+    APP_ENV: str = Field(default="development", alias="APP_ENV")
+    DEBUG: bool = Field(default=True, alias="DEBUG")
 
-    # ----- LLM Ayarları -----
-    # OpenAI-compatible endpoint (Ollama Cloud, vLLM, Groq, Together vs.)
-    LLM_BASE_URL: str = field(default_factory=lambda: os.getenv("LLM_BASE_URL", "https://ollama.com/v1"))
-    OLLAMA_API_KEY: str = field(default_factory=lambda: os.getenv("OLLAMA_API_KEY", "ollama"))
-    LLM_MODEL: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "deepseek-v3.1:671b-cloud"))
-    LLM_TEMPERATURE: float = field(default_factory=lambda: float(os.getenv("LLM_TEMPERATURE", "0.3")))
-    DEFAULT_LLM_PROVIDER: str = field(default_factory=lambda: os.getenv("DEFAULT_LLM_PROVIDER", "ollama"))
+    # --- LLM Settings ---
+    LLM_BASE_URL: str = Field(default="https://ollama.com/v1")
+    OLLAMA_API_KEY: str = Field(default="ollama")
+    LLM_MODEL: str = Field(default="deepseek-v3.1:671b-cloud")
+    LLM_TEMPERATURE: float = Field(default=0.3)
+    DEFAULT_LLM_PROVIDER: str = Field(default="ollama")
+    CHAT_CACHE_TTL: int = Field(default=1800, description="Chat response cache TTL in seconds")
 
-    # ----- Embedding Ayarları -----
-    # Ollama yerel sunucu
-    OLLAMA_BASE_URL: str = field(default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
-    EMBED_MODEL: str = field(default_factory=lambda: os.getenv("EMBED_MODEL", "nomic-embed-text"))
-    
-    # HuggingFace alternatif
-    USE_HUGGINGFACE: bool = field(default_factory=lambda: os.getenv("USE_HUGGINGFACE", "false").lower() == "true")
-    HF_EMBED_MODEL: str = field(default_factory=lambda: os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2"))
+    # --- Embedding Settings ---
+    OLLAMA_BASE_URL: str = Field(default="http://localhost:11434")
+    EMBED_MODEL: str = Field(default="nomic-embed-text")
+    USE_HUGGINGFACE: bool = Field(default=False)
+    HF_EMBED_MODEL: str = Field(default="sentence-transformers/all-MiniLM-L6-v2")
 
-    # Chunking settings
-    CHUNK_SIZE: int = field(default_factory=lambda: int(os.getenv("CHUNK_SIZE", "1000")))
-    CHUNK_OVERLAP: int = field(default_factory=lambda: int(os.getenv("CHUNK_OVERLAP", "200")))
+    # --- RAG & Chunking Settings ---
+    CHUNK_SIZE: int = Field(default=1000)
+    CHUNK_OVERLAP: int = Field(default=200)
+    DEFAULT_RETRIEVER_K: int = Field(default=4)
+    SIMILARITY_THRESHOLD: float = Field(default=0.5)
 
-    # File settings
-    ALLOWED_FILE_TYPES: List[str] = field(default_factory=lambda: ["pdf", "txt", "docx", "html", "md"])
-    MAX_FILE_SIZE_MB: int = 50
-    MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024
+    # --- File settings ---
+    ALLOWED_FILE_TYPES: list[str] = ["pdf", "txt", "docx", "html", "md", "pptx", "xlsx"]
+    MAX_FILE_SIZE_MB: int = Field(default=50)
+    MAX_FILE_NAME_LENGTH: int = Field(default=255)
 
-    # Retriever settings
-    DEFAULT_RETRIEVER_K: int = 4
+    # --- Chat & History Settings ---
+    MAX_MESSAGES_IN_MEMORY: int = Field(default=100)
+    MESSAGE_SUMMARY_THRESHOLD: int = Field(default=50)
+    DEFAULT_CHAT_LIMIT: int = Field(default=50)
+    MAX_HISTORY_LIMIT: int = Field(default=1000)
+    MAX_MESSAGE_LENGTH: int = Field(default=10000)
 
-    # Chat settings
-    MAX_MESSAGES_IN_MEMORY: int = 100
-    MESSAGE_SUMMARY_THRESHOLD: int = 50
+    # --- Database Settings ---
+    DATA_DIR: str = Field(default="data")
+    DB_PATH: str = Field(default="data/app.db")
+    CHROMA_PERSIST_DIR: str = Field(default="data/chroma")
+    JOB_RETENTION_DAYS: int = Field(default=7)
 
-    # Database settings
-    DATA_DIR: str = field(default_factory=lambda: os.getenv("DATA_DIR", "data"))
-    DB_PATH: str = field(default_factory=lambda: os.getenv("DB_PATH", "data/app.db"))
-    CHROMA_PERSIST_DIR: str = field(default_factory=lambda: os.getenv("CHROMA_PERSIST_DIR", "data/chroma"))
+    # --- UI & UX Settings ---
+    SIDEBAR_DEFAULT_OPEN: bool = Field(default=True)
+    DEFAULT_PAGE: str = Field(default="💬 Chat")
+    THEME: str = Field(default="dark")
+    POLLING_INTERVAL_MS: int = Field(default=3000)
 
-    # UI settings
-    SIDEBAR_DEFAULT_OPEN: bool = field(default_factory=lambda: os.getenv("SIDEBAR_DEFAULT_OPEN", "true").lower() == "true")
-    DEFAULT_PAGE: str = field(default_factory=lambda: os.getenv("DEFAULT_PAGE", "💬 Chat"))
-
-    # ----- Security Settings -----
-    RATE_LIMIT_ENABLED: bool = field(default_factory=lambda: os.getenv("RATE_LIMIT_ENABLED", "false").lower() == "true")
-    RATE_LIMIT_RPM: int = field(default_factory=lambda: int(os.getenv("RATE_LIMIT_RPM", "60")))
+    # --- Security Settings ---
+    RATE_LIMIT_ENABLED: bool = Field(default=False)
+    RATE_LIMIT_RPM: int = Field(default=60)
+    RATE_LIMIT_RPH: int = Field(default=1000)
+    BURST_LIMIT: int = Field(default=10)
 
     # Preference weights
-    DEFAULT_PREFERENCE_WEIGHTS: Dict[str, float] = field(default_factory=lambda: {
+    DEFAULT_PREFERENCE_WEIGHTS: dict[str, float] = {
         "concise": 0.5,
         "detailed": 0.5,
         "examples": 0.5,
-        "step_by_step": 0.5
-    })
+        "step_by_step": 0.5,
+    }
 
-    def __post_init__(self):
+    @model_validator(mode="after")
+    def validate_paths_and_config(self) -> "AppConfig":
         """Initialize paths and validate configuration."""
         # Create directories
         Path(self.DB_PATH).parent.mkdir(parents=True, exist_ok=True)
         Path(self.CHROMA_PERSIST_DIR).mkdir(parents=True, exist_ok=True)
-        
-        # Validate settings
-        self._validate()
 
-    def _validate(self) -> None:
-        """Validate configuration settings."""
+        # Validations
         if self.CHUNK_SIZE <= 0:
             raise ValueError("CHUNK_SIZE must be positive")
         if self.CHUNK_OVERLAP >= self.CHUNK_SIZE:
             raise ValueError("CHUNK_OVERLAP must be less than CHUNK_SIZE")
-        if self.MAX_FILE_SIZE_BYTES <= 0:
-            raise ValueError("MAX_FILE_SIZE_BYTES must be positive")
         if self.RATE_LIMIT_RPM <= 0:
             raise ValueError("RATE_LIMIT_RPM must be positive")
+        return self
 
     def is_production(self) -> bool:
-        """Check if running in production mode."""
         return self.APP_ENV.lower() == "production"
 
     def is_development(self) -> bool:
-        """Check if running in development mode."""
         return self.APP_ENV.lower() == "development"
+
+    @property
+    def MAX_FILE_SIZE_BYTES(self) -> int:
+        return self.MAX_FILE_SIZE_MB * 1024 * 1024
+
 
 
 # LLM Model seçenekleri
@@ -203,7 +187,11 @@ LLM_MODEL_OPTIONS = [
 # Embedding Model seçenekleri
 EMBED_MODEL_OPTIONS = [
     {"label": "nomic-embed-text", "value": "nomic-embed-text", "desc": "Önerilen"},
-    {"label": "mxbai-embed-large", "value": "mxbai-embed-large", "desc": "Yüksek kalite"},
+    {
+        "label": "mxbai-embed-large",
+        "value": "mxbai-embed-large",
+        "desc": "Yüksek kalite",
+    },
     {"label": "all-minilm", "value": "all-minilm", "desc": "Hızlı"},
     {"label": "bge-m3", "value": "bge-m3", "desc": "Çok dilli"},
 ]
@@ -211,7 +199,10 @@ EMBED_MODEL_OPTIONS = [
 # HuggingFace Embedding seçenekleri
 HF_EMBED_OPTIONS = [
     {"label": "all-MiniLM-L6-v2", "value": "sentence-transformers/all-MiniLM-L6-v2"},
-    {"label": "multi-qa-mpnet-base", "value": "sentence-transformers/multi-qa-mpnet-base-cos-v1"},
+    {
+        "label": "multi-qa-mpnet-base",
+        "value": "sentence-transformers/multi-qa-mpnet-base-cos-v1",
+    },
     {"label": "bge-small-en-v1.5", "value": "BAAI/bge-small-en-v1.5"},
 ]
 

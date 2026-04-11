@@ -1,28 +1,22 @@
-"""Callback functions for UI events with cache integration."""
 from datetime import datetime
-from typing import Dict, List
 
 import streamlit as st
 
-from app.core import DatabaseManager, FileMetadata, Message, Workspace, get_job_queue
+from app.core import Workspace
 from app.core.cache import (
     cached_get_messages,
     cached_get_workspace_files,
-    cached_get_workspaces,
     clear_all_caches,
-    get_cache_stats,
     get_cached_chroma_manager,
     get_cached_database_manager,
-    get_cached_embedding_manager,
     invalidate_embedding_cache,
     invalidate_file_cache,
     invalidate_workspace_cache,
 )
-from app.core.chroma import ChromaManager, EmbeddingManager
 from app.core.config import AppConfig
 from app.core.constants import SessionKeys
+from app.core.exceptions import ChromaError, DatabaseError
 from app.core.logger import logger
-from app.core.services.chat_service import ChatService
 from app.core.services.file_service import FileService
 
 
@@ -31,7 +25,7 @@ def load_workspaces() -> None:
     try:
         # Use cached database manager
         db = get_cached_database_manager()
-        workspaces = db.get_workspaces()
+        workspaces = db.workspaces.get_all()
         st.session_state[SessionKeys.WORKSPACES.value] = workspaces
 
         active_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
@@ -41,7 +35,7 @@ def load_workspaces() -> None:
                 st.session_state[SessionKeys.ACTIVE_WORKSPACE_ID.value] = active.id
     except Exception as e:
         logger.error(f"Failed to load workspaces: {e}")
-        st.error("Çalışma alanları yüklenirken bir hata oluştu.")
+        st.error(f"Çalışma alanları yüklenirken bir hata oluştu: {str(e)}")
 
 
 def create_workspace_callback(name: str) -> None:
@@ -52,13 +46,13 @@ def create_workspace_callback(name: str) -> None:
     try:
         db = get_cached_database_manager()
         workspace = Workspace(name=name)
-        db.create_workspace(workspace)
+        db.workspaces.create(workspace)
 
         # Initialize ChromaDB collection with cached manager
         chroma = get_cached_chroma_manager()
         chroma.get_or_create_collection(workspace.id, workspace.name)
 
-        db.set_active_workspace(workspace.id)
+        db.workspaces.set_active(workspace.id)
         st.session_state[SessionKeys.ACTIVE_WORKSPACE_ID.value] = workspace.id
 
         # Invalidate workspace cache
@@ -66,16 +60,19 @@ def create_workspace_callback(name: str) -> None:
 
         load_workspaces()
         st.success(f"Çalışma alanı oluşturuldu: {name}")
+    except (DatabaseError, ChromaError) as e:
+        logger.error(f"Workspace creation error: {e}")
+        st.error(f"Çalışma alanı oluşturulamadı: {str(e)}")
     except Exception as e:
-        logger.error(f"Failed to create workspace '{name}': {e}")
-        st.error("Çalışma alanı oluşturulamadı.")
+        logger.critical(f"Unexpected error creating workspace: {e}")
+        st.error("Beklenmedik bir hata oluştu.")
 
 
 def select_workspace_callback(workspace_id: str) -> None:
     """Switch the active workspace."""
     try:
         db = get_cached_database_manager()
-        db.set_active_workspace(workspace_id)
+        db.workspaces.set_active(workspace_id)
         st.session_state[SessionKeys.ACTIVE_WORKSPACE_ID.value] = workspace_id
         st.rerun()
     except Exception as e:
@@ -90,11 +87,11 @@ def rename_workspace_callback(workspace_id: str, new_name: str) -> None:
 
     try:
         db = get_cached_database_manager()
-        workspace = db.get_workspace(workspace_id)
+        workspace = db.workspaces.get_by_id(workspace_id)
         if workspace:
             workspace.name = new_name
             workspace.last_modified = datetime.now()
-            db.update_workspace(workspace)
+            db.workspaces.update(workspace)
 
             # Invalidate cache
             invalidate_workspace_cache(workspace_id)
@@ -111,16 +108,19 @@ def delete_workspace_callback(workspace_id: str) -> None:
     """Delete a workspace and all its associated vector data."""
     try:
         db = get_cached_database_manager()
-        workspace = db.get_workspace(workspace_id)
+        workspace = db.workspaces.get_by_id(workspace_id)
         if workspace:
             chroma = get_cached_chroma_manager()
             chroma.delete_workspace_data(workspace_id, workspace.name)
-            db.delete_workspace(workspace_id)
+            db.workspaces.delete(workspace_id)
 
             # Invalidate cache
             invalidate_workspace_cache(workspace_id)
 
-            if st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value) == workspace_id:
+            if (
+                st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
+                == workspace_id
+            ):
                 st.session_state[SessionKeys.ACTIVE_WORKSPACE_ID.value] = None
 
             load_workspaces()
@@ -130,7 +130,9 @@ def delete_workspace_callback(workspace_id: str) -> None:
         st.error("Çalışma alanı silinirken hata oluştu.")
 
 
-def upload_files_callback(uploaded_files: List, workspace: Workspace, settings: Dict) -> None:
+def upload_files_callback(
+    uploaded_files: list, workspace: Workspace, settings: dict
+) -> None:
     """Handle multi-file upload via FileService."""
     if not uploaded_files or not workspace:
         return
@@ -191,9 +193,13 @@ def process_directory_callback(directory_path: str, workspace: Workspace) -> Non
 
         # Build embedding settings from state
         settings = {
-            "use_huggingface": st.session_state.get(SessionKeys.USE_HUGGINGFACE.value, False),
-            "model_name": st.session_state.get(SessionKeys.EMBED_MODEL.value) if not st.session_state.get(SessionKeys.USE_HUGGINGFACE.value) else st.session_state.get(SessionKeys.HF_EMBED_MODEL.value),
-            "ollama_url": st.session_state.get(SessionKeys.OLLAMA_URL.value)
+            "use_huggingface": st.session_state.get(
+                SessionKeys.USE_HUGGINGFACE.value, False
+            ),
+            "model_name": st.session_state.get(SessionKeys.EMBED_MODEL.value)
+            if not st.session_state.get(SessionKeys.USE_HUGGINGFACE.value)
+            else st.session_state.get(SessionKeys.HF_EMBED_MODEL.value),
+            "ollama_url": st.session_state.get(SessionKeys.OLLAMA_URL.value),
         }
 
         with st.spinner("Dizin taranıyor..."):
@@ -224,7 +230,9 @@ def reset_system_callback() -> None:
 
         # 2. Reset Vector Store
         config = AppConfig()
-        chroma_path = st.session_state.get(SessionKeys.CHROMA_PATH.value, config.CHROMA_PERSIST_DIR)
+        chroma_path = st.session_state.get(
+            SessionKeys.CHROMA_PATH.value, config.CHROMA_PERSIST_DIR
+        )
         chroma = get_cached_chroma_manager({"chroma_path": chroma_path})
         chroma.hard_reset()
 
@@ -232,10 +240,18 @@ def reset_system_callback() -> None:
         db = get_cached_database_manager()
         db.reset_system()
 
-        # 4. Clear session state
-        st.session_state[SessionKeys.ACTIVE_WORKSPACE_ID.value] = None
-        st.session_state[SessionKeys.CHAT_HISTORY.value] = []
-        st.session_state[SessionKeys.WORKSPACES.value] = []
+        # 4. Clear session state comprehensively
+        keys_to_reset = [
+            SessionKeys.ACTIVE_WORKSPACE_ID.value,
+            SessionKeys.CHAT_HISTORY.value,
+            SessionKeys.WORKSPACES.value,
+            SessionKeys.PREFERENCES.value,
+            SessionKeys.CURRENT_PAGE.value,
+        ]
+
+        for key in keys_to_reset:
+            if key in st.session_state:
+                del st.session_state[key]
 
         st.success("Tüm sistem başarıyla sıfırlandı!")
         load_workspaces()
@@ -249,7 +265,7 @@ def clear_chat_history_callback(workspace_id: str) -> None:
     """Clear chat history for a workspace."""
     try:
         db = get_cached_database_manager()
-        db.clear_messages(workspace_id)
+        db.messages.clear_by_workspace(workspace_id)
 
         # Invalidate message cache
         cached_get_messages.clear(workspace_id)
@@ -265,11 +281,13 @@ def save_settings_callback() -> None:
     """Extract current settings from session state and persist to database."""
     try:
         db = get_cached_database_manager()
-        prefs = db.get_preferences()
+        prefs = db.preferences.get()
 
         # Check if embedding settings changed
         old_use_hf = prefs.config.get(SessionKeys.USE_HUGGINGFACE.value, False)
-        old_embed_model = prefs.config.get(SessionKeys.EMBED_MODEL.value, "nomic-embed-text")
+        old_embed_model = prefs.config.get(
+            SessionKeys.EMBED_MODEL.value, "nomic-embed-text"
+        )
 
         # Define keys to persist
         config_keys = [
@@ -286,7 +304,7 @@ def save_settings_callback() -> None:
             SessionKeys.CHROMA_PATH.value,
             SessionKeys.CHUNK_SIZE.value,
             SessionKeys.CHUNK_OVERLAP.value,
-            SessionKeys.THEME.value
+            SessionKeys.THEME.value,
         ]
 
         # Capture current state
@@ -297,11 +315,13 @@ def save_settings_callback() -> None:
 
         prefs.config = new_config
         prefs.updated_at = datetime.now()
-        db.save_preferences(prefs)
+        db.preferences.save(prefs)
 
         # Invalidate embedding cache if settings changed
         new_use_hf = new_config.get(SessionKeys.USE_HUGGINGFACE.value, False)
-        new_embed_model = new_config.get(SessionKeys.EMBED_MODEL.value, "nomic-embed-text")
+        new_embed_model = new_config.get(
+            SessionKeys.EMBED_MODEL.value, "nomic-embed-text"
+        )
 
         if old_use_hf != new_use_hf or old_embed_model != new_embed_model:
             invalidate_embedding_cache()
@@ -322,31 +342,43 @@ def clear_cache_callback() -> None:
         st.error("Önbellek temizlenemedi.")
 
 
-def get_cached_files(workspace_id: str) -> List:
+def get_cached_files(workspace_id: str) -> list:
     """Get files for a workspace using cache."""
     from app.core.models import FileMetadata
 
-    db = get_cached_database_manager()
     files_data = cached_get_workspace_files(workspace_id)
 
     # Convert dicts back to objects if needed
     files = []
     for f in files_data:
         if isinstance(f, dict):
+            # Safe parsing for FileMetadata with fixed types
+            uploaded_raw = f.get("uploaded_at")
+            uploaded_at: datetime = (
+                uploaded_raw if isinstance(uploaded_raw, datetime) else datetime.now()
+            )
+
+            processed_raw = f.get("processed_at")
+            processed_at: datetime | None = (
+                processed_raw if isinstance(processed_raw, datetime) else None
+            )
+
             file_obj = FileMetadata(
-                id=f.get('id'),
-                workspace_id=f.get('workspace_id'),
-                filename=f.get('filename'),
-                original_name=f.get('original_name'),
-                file_type=f.get('file_type'),
-                size=f.get('size', 0),
-                status=f.get('status', 'pending'),
-                chunk_count=f.get('chunk_count', 0),
-                content_hash=f.get('content_hash'),
-                uploaded_at=f.get('uploaded_at'),
-                processed_at=f.get('processed_at'),
-                error_message=f.get('error_message'),
-                tags=f.get('tags', [])
+                id=str(f.get("id", "")),
+                workspace_id=str(f.get("workspace_id", "")),
+                filename=str(f.get("filename", "")),
+                original_name=str(f.get("original_name", "")),
+                file_type=str(f.get("file_type", "")),
+                size=int(f.get("size", 0)),
+                status=str(f.get("status", "pending")),
+                chunk_count=int(f.get("chunk_count", 0)),
+                content_hash=str(f.get("content_hash", "")),
+                uploaded_at=uploaded_at,
+                processed_at=processed_at,
+                error_message=str(f.get("error_message", ""))
+                if f.get("error_message")
+                else None,
+                tags=list(f.get("tags", [])),
             )
             files.append(file_obj)
         else:

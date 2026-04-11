@@ -1,8 +1,10 @@
 import sys
+
 sys.path.insert(0, ".")
 
 # Check file status and chunks
 import sqlite3
+
 from app.core.config import AppConfig
 
 config = AppConfig()
@@ -40,8 +42,9 @@ for row in rows:
 # Check ChromaDB
 print("\nChromaDB collections:")
 from app.core.chroma import ChromaManager
+
 chroma = ChromaManager()
-collections = chroma.get_collections()
+collections = chroma.client.list_collections()
 for coll in collections:
     print(f"  - {coll.name}: {coll.count()} documents")
 

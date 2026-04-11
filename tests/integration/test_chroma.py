@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0, ".")
 
 # Check ChromaDB collections
@@ -20,6 +21,7 @@ except Exception as e:
 try:
     # Get by workspace name
     import chromadb
+
     client = chromadb.PersistentClient(path="data/chroma")
     collections = client.list_collections()
     print("\nCollections in ChromaDB:")
