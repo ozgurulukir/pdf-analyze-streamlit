@@ -1,9 +1,7 @@
 """Document loader using Kreuzberg for unified extraction."""
 
 import asyncio
-import io
 import os
-from typing import List, Optional
 
 import streamlit as st
 
@@ -38,7 +36,6 @@ class DocumentLoader:
     @staticmethod
     def load_file(file) -> str:
         """Load and extract text from file using Kreuzberg."""
-        import asyncio
         import mimetypes
 
         from kreuzberg import extract_bytes, extract_file
@@ -88,7 +85,7 @@ class DocumentLoader:
             return ""
 
     @classmethod
-    def load_documents(cls, uploaded_files) -> List[Document]:
+    def load_documents(cls, uploaded_files) -> list[Document]:
         """Load multiple documents and return as LangChain Documents."""
         documents = []
 
@@ -117,7 +114,7 @@ class DocumentLoader:
     @classmethod
     def load_directory(
         cls, directory_path: str, glob_pattern: str = "**/*.*"
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Load documents from a directory using Kreuzberg for each file."""
         import glob
 
@@ -156,7 +153,7 @@ class DocumentLoader:
     @staticmethod
     def validate_file(
         uploaded_file, max_size_mb: int = 50
-    ) -> tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Validate file before processing."""
         file_ext = uploaded_file.name.split(".")[-1].lower()
 

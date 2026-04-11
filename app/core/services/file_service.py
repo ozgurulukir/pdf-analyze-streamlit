@@ -2,7 +2,7 @@
 
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from app.core.database import DatabaseManager
 from app.core.exceptions import AppError
@@ -31,10 +31,10 @@ class FileService:
 
     def upload_files(
         self,
-        uploaded_files: List[Any],
+        uploaded_files: list[Any],
         workspace: Workspace,
-        embedding_settings: Dict[str, Any],
-    ) -> Tuple[int, List[str], List[str]]:
+        embedding_settings: dict[str, Any],
+    ) -> tuple[int, list[str], list[str]]:
         """
         Process uploaded files and queue them for embedding.
 
@@ -154,8 +154,8 @@ class FileService:
         self,
         directory_path: str,
         workspace: Workspace,
-        embedding_settings: Dict[str, Any],
-    ) -> Tuple[int, List[str], List[str]]:
+        embedding_settings: dict[str, Any],
+    ) -> tuple[int, list[str], list[str]]:
         """
         Scan a local directory and process all supported documents.
         """

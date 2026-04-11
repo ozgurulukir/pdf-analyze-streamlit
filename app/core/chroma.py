@@ -1,7 +1,7 @@
 """Chroma vector store manager with Ollama/HuggingFace embeddings."""
 
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import chromadb
 from chromadb.api.models.Collection import Collection
@@ -20,7 +20,7 @@ class ChromaManager:
     chunk ingestion, and similarity querying.
     """
 
-    def __init__(self, persist_directory: Optional[str] = None):
+    def __init__(self, persist_directory: str | None = None):
         """
         Initialize the Chroma manager.
 
@@ -30,7 +30,7 @@ class ChromaManager:
         if persist_directory is None:
             persist_directory = AppConfig().CHROMA_PERSIST_DIR
         self.persist_directory = persist_directory
-        self._client: Optional[chromadb.PersistentClient] = None
+        self._client: chromadb.PersistentClient | None = None
 
     @property
     def client(self) -> chromadb.PersistentClient:
@@ -114,7 +114,7 @@ class ChromaManager:
 
     def get_collection(
         self, workspace_id: str, workspace_name: str
-    ) -> Optional[Collection]:
+    ) -> Collection | None:
         """
         Retrieve an existing collection without creating it.
 
@@ -156,10 +156,10 @@ class ChromaManager:
         workspace_id: str,
         workspace_name: str,
         file_id: str,
-        chunks: List[str],
-        embeddings: List[List[float]],
-        source: Optional[str] = None,
-    ) -> List[str]:
+        chunks: list[str],
+        embeddings: list[list[float]],
+        source: str | None = None,
+    ) -> list[str]:
         """
         Add text chunks and their embeddings to the workspace collection.
 
@@ -209,10 +209,10 @@ class ChromaManager:
         self,
         workspace_id: str,
         workspace_name: str,
-        query_embedding: List[float],
+        query_embedding: list[float],
         n_results: int = 4,
-        where: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[List[str], List[float], List[Dict[str, Any]]]:
+        where: dict[str, Any] | None = None,
+    ) -> tuple[list[str], list[float], list[dict[str, Any]]]:
         """
         Perform a similarity search in the workspace collection.
 
@@ -382,7 +382,7 @@ class EmbeddingManager:
             logger.error(f"Failed to initialize embedding model: {e}")
             raise ChromaError(f"Embedding initialization failed: {e}")
 
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings for a batch of documents.
 
@@ -395,7 +395,7 @@ class EmbeddingManager:
         model = self.get_embeddings_model()
         return model.embed_documents(texts)
 
-    def get_query_embedding(self, query: str) -> List[float]:
+    def get_query_embedding(self, query: str) -> list[float]:
         """
         Generate embedding for a single search query.
 
@@ -421,7 +421,7 @@ class ChunkManager:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    def chunk_text(self, text: str) -> List[str]:
+    def chunk_text(self, text: str) -> list[str]:
         """
         Split a block of text into smaller context windows.
 
@@ -444,7 +444,7 @@ class ChunkManager:
 
         return splitter.split_text(text)
 
-    def chunk_document(self, document: Any) -> List[Any]:
+    def chunk_document(self, document: Any) -> list[Any]:
         """
         Split a LangChain document object into multiple documents.
 

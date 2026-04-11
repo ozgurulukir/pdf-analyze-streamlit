@@ -1,7 +1,6 @@
 """Workspace UI components - sidebar and file management."""
 
-from datetime import datetime
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 import streamlit as st
 
@@ -9,8 +8,8 @@ from app.core.models import FileMetadata, Job, Workspace
 
 
 def render_workspace_selector(
-    workspaces: List[Workspace],
-    active_workspace: Optional[Workspace],
+    workspaces: list[Workspace],
+    active_workspace: Workspace | None,
     on_create: Callable,
     on_select: Callable,
     on_delete: Callable,
@@ -87,22 +86,22 @@ def render_file_card(
 
     with stylable_container(
         key=f"file_{file.id}",
-        css_styles=f"""
-            {{
+        css_styles="""
+            {
                 background: rgba(30, 41, 59, 0.4);
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 12px;
                 padding: 1rem;
                 margin-bottom: 1rem;
                 transition: all 0.3s ease;
-            }}
+            }
         """,
     ):
         # File Info Row
         col_icon, col_text = st.columns([1, 6])
         with col_icon:
             st.markdown(
-                f"<div style='font-size: 2rem; text-align: center;'>📄</div>",
+                "<div style='font-size: 2rem; text-align: center;'>📄</div>",
                 unsafe_allow_html=True,
             )
         with col_text:
@@ -137,14 +136,14 @@ def render_file_card(
 
 
 def render_file_list(
-    files: List[FileMetadata],
+    files: list[FileMetadata],
     on_delete: Callable,
     on_revectorize: Callable,
     on_preview: Callable,
 ):
     """Render list of files in workspace."""
     if not files:
-        st.markdown(f"### 📄 Dosyalar (0)")
+        st.markdown("### 📄 Dosyalar (0)")
         st.info("Henüz dosya yok. Dosya yükleyin.")
         return
 
@@ -154,7 +153,7 @@ def render_file_list(
             render_file_card(file, on_delete, on_revectorize, on_preview)
 
 
-def render_upload_zone(on_upload: Callable, allowed_types: List[str] = None):
+def render_upload_zone(on_upload: Callable, allowed_types: list[str] = None):
     """Render file upload zone."""
     st.markdown("### 📤 Dosya Yükle")
 
@@ -190,7 +189,7 @@ def render_job_progress(job: Job):
         st.error(f"❌ Başarısız: {job.error_message}")
 
 
-def render_active_jobs(jobs: List[Job]):
+def render_active_jobs(jobs: list[Job]):
     """Render active jobs in workspace."""
     if not jobs:
         return
@@ -206,7 +205,7 @@ def render_active_jobs(jobs: List[Job]):
 
 def render_workspace_modal(
     is_open: bool,
-    workspaces: List[Workspace],
+    workspaces: list[Workspace],
     on_create: Callable,
     on_select: Callable,
     on_delete: Callable,
@@ -235,11 +234,11 @@ def render_workspace_modal(
         st.divider()
 
         # Create new
-        new_name = st.text_input("Yeni çalışma alanı", key="modal_new_workspace")
+        st.text_input("Yeni çalışma alanı", key="modal_new_workspace")
 
 
 def render_document_stats(
-    files: List[FileMetadata], workspace_id: str, workspace_name: str
+    files: list[FileMetadata], workspace_id: str, workspace_name: str
 ):
     """Render document statistics and vector store info."""
     if not files:

@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Import config to check environment
 try:
@@ -22,7 +22,7 @@ class JsonFormatter(logging.Formatter):
     """JSON formatter for structured logging."""
 
     def format(self, record: logging.LogRecord) -> str:
-        log_data: Dict[str, Any] = {
+        log_data: dict[str, Any] = {
             "timestamp": datetime.utcnow().isoformat(),
             "level": record.levelname,
             "logger": record.name,
@@ -60,8 +60,8 @@ class ColoredFormatter(logging.Formatter):
 
 def setup_logger(
     name: str = "pdf_analyzer",
-    level: Optional[int] = None,
-    log_file: Optional[str] = None,
+    level: int | None = None,
+    log_file: str | None = None,
 ) -> logging.Logger:
     """
     Set up a standardized logger with console and optional file output.
@@ -124,7 +124,7 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-def log_execution(logger: Optional[logging.Logger] = None):
+def log_execution(logger: logging.Logger | None = None):
     """
     Decorator to log function execution time and results.
 

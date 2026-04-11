@@ -1,6 +1,7 @@
 """Service layer for chat and RAG operations with cache integration."""
 
-from typing import Any, Dict, Generator, List, Optional
+from collections.abc import Generator
+from typing import Any
 
 from app.core.cache import (
     cached_chroma_query,
@@ -31,9 +32,9 @@ class ChatService:
 
     def __init__(
         self,
-        db: Optional[DatabaseManager] = None,
-        chroma: Optional[ChromaManager] = None,
-        embedding: Optional[EmbeddingManager] = None,
+        db: DatabaseManager | None = None,
+        chroma: ChromaManager | None = None,
+        embedding: EmbeddingManager | None = None,
         use_cache: bool = True,
     ):
         """
@@ -65,8 +66,8 @@ class ChatService:
         else:
             self.embedding = embedding
 
-        self._llm_config: Dict[str, Any] = {}
-        self._workspace_id: Optional[str] = None
+        self._llm_config: dict[str, Any] = {}
+        self._workspace_id: str | None = None
 
     def configure_embedding(
         self,
@@ -102,7 +103,7 @@ class ChatService:
             f"Embedding manager configured: hf={use_huggingface}, model={ollama_model}"
         )
 
-    def get_cached_embedding(self, text: str) -> List[float]:
+    def get_cached_embedding(self, text: str) -> list[float]:
         """
         Get embedding for text with caching.
 
@@ -123,9 +124,9 @@ class ChatService:
         self,
         workspace_id: str,
         workspace_name: str,
-        query_embedding: List[float],
+        query_embedding: list[float],
         n_results: int = 4,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Perform cached ChromaDB similarity search.
 
@@ -162,8 +163,8 @@ class ChatService:
         )
 
     def stream_response(
-        self, question: str, workspace: Workspace, llm_config: Dict[str, Any]
-    ) -> Generator[Dict[str, Any], None, None]:
+        self, question: str, workspace: Workspace, llm_config: dict[str, Any]
+    ) -> Generator[dict[str, Any], None, None]:
         """
         Get a streaming AI response for a question using RAG.
 
@@ -240,7 +241,7 @@ class ChatService:
 
     def get_chat_history(
         self, workspace_id: str, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get chat history for a workspace with caching.
 
@@ -277,7 +278,7 @@ class ChatService:
             logger.error(f"Failed to clear history for workspace {workspace_id}: {e}")
             raise
 
-    def get_workspace_stats(self, workspace_id: str) -> Dict[str, Any]:
+    def get_workspace_stats(self, workspace_id: str) -> dict[str, Any]:
         """
         Get statistics for a workspace with caching.
 

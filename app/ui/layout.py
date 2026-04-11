@@ -104,7 +104,7 @@ def apply_layout_styles():
         border-color: #6366f1 !important;
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
     }
-    
+
     /* Chat Input */
     .stChatInput {
         border-radius: 14px !important;
@@ -166,7 +166,7 @@ def apply_layout_styles():
         padding: 0.75rem 1rem !important;
     }
     .stExpander summary::marker { color: #6366f1; }
-    
+
     /* ========================
        METRIC CARDS
     ======================== */

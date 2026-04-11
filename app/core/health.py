@@ -3,7 +3,7 @@
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -21,14 +21,14 @@ class HealthCheckResult:
     status: str  # "healthy", "degraded", "unhealthy"
     message: str = ""
     response_time_ms: float = 0.0
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
     def is_healthy(self) -> bool:
         """Check if the component is healthy."""
         return self.status == "healthy"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "component": self.component,
@@ -49,7 +49,7 @@ class HealthChecker:
     def __init__(self):
         """Initialize the health checker."""
         self.config = AppConfig()
-        self._checks: Dict[str, callable] = {}
+        self._checks: dict[str, callable] = {}
 
     def check_database(self) -> HealthCheckResult:
         """
@@ -185,7 +185,6 @@ class HealthChecker:
         Returns:
             HealthCheckResult: File system health status
         """
-        import os
         from pathlib import Path
 
         start_time = time.time()
@@ -235,7 +234,7 @@ class HealthChecker:
                 response_time_ms=response_time,
             )
 
-    def check_all(self) -> Dict[str, HealthCheckResult]:
+    def check_all(self) -> dict[str, HealthCheckResult]:
         """
         Run all health checks.
 
@@ -280,7 +279,7 @@ class HealthChecker:
 
 
 # Singleton instance
-_health_checker: Optional[HealthChecker] = None
+_health_checker: HealthChecker | None = None
 
 
 def get_health_checker() -> HealthChecker:

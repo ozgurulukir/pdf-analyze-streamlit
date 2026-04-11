@@ -1,29 +1,23 @@
 """Callback functions for UI events with cache integration."""
 
 from datetime import datetime
-from typing import Dict, List
 
 import streamlit as st
 
-from app.core import DatabaseManager, FileMetadata, Message, Workspace, get_job_queue
+from app.core import Workspace
 from app.core.cache import (
     cached_get_messages,
     cached_get_workspace_files,
-    cached_get_workspaces,
     clear_all_caches,
-    get_cache_stats,
     get_cached_chroma_manager,
     get_cached_database_manager,
-    get_cached_embedding_manager,
     invalidate_embedding_cache,
     invalidate_file_cache,
     invalidate_workspace_cache,
 )
-from app.core.chroma import ChromaManager, EmbeddingManager
 from app.core.config import AppConfig
 from app.core.constants import SessionKeys
 from app.core.logger import logger
-from app.core.services.chat_service import ChatService
 from app.core.services.file_service import FileService
 
 
@@ -135,7 +129,7 @@ def delete_workspace_callback(workspace_id: str) -> None:
 
 
 def upload_files_callback(
-    uploaded_files: List, workspace: Workspace, settings: Dict
+    uploaded_files: list, workspace: Workspace, settings: dict
 ) -> None:
     """Handle multi-file upload via FileService."""
     if not uploaded_files or not workspace:
@@ -340,11 +334,11 @@ def clear_cache_callback() -> None:
         st.error("Önbellek temizlenemedi.")
 
 
-def get_cached_files(workspace_id: str) -> List:
+def get_cached_files(workspace_id: str) -> list:
     """Get files for a workspace using cache."""
     from app.core.models import FileMetadata
 
-    db = get_cached_database_manager()
+    get_cached_database_manager()
     files_data = cached_get_workspace_files(workspace_id)
 
     # Convert dicts back to objects if needed

@@ -1,10 +1,8 @@
 """Application configuration and settings."""
 
-import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -13,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_ollama_models(base_url: str = "http://localhost:11434") -> List[Dict[str, str]]:
+def get_ollama_models(base_url: str = "http://localhost:11434") -> list[dict[str, str]]:
     """
     Fetch available models from Ollama API.
 
@@ -52,7 +50,7 @@ def get_ollama_models(base_url: str = "http://localhost:11434") -> List[Dict[str
 
 def get_ollama_llm_models(
     base_url: str = "http://localhost:11434",
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """
     Fetch available LLM models from Ollama API.
 
@@ -157,7 +155,7 @@ class AppConfig:
     )
 
     # File settings
-    ALLOWED_FILE_TYPES: List[str] = field(
+    ALLOWED_FILE_TYPES: list[str] = field(
         default_factory=lambda: ["pdf", "txt", "docx", "html", "md"]
     )
     MAX_FILE_SIZE_MB: int = 50
@@ -196,7 +194,7 @@ class AppConfig:
     )
 
     # Preference weights
-    DEFAULT_PREFERENCE_WEIGHTS: Dict[str, float] = field(
+    DEFAULT_PREFERENCE_WEIGHTS: dict[str, float] = field(
         default_factory=lambda: {
             "concise": 0.5,
             "detailed": 0.5,

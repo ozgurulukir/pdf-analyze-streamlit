@@ -2,7 +2,6 @@
 
 import streamlit as st
 
-from app.core import DatabaseManager
 from app.core.cache import (
     get_cache_stats,
     get_cached_database_manager,
@@ -102,7 +101,6 @@ def render_library_page(settings: dict):
     """Render the document library page with tabbed management view and caching."""
     from app.ui.callbacks import (
         create_workspace_callback,
-        delete_file_callback,
         delete_workspace_callback,
         rename_workspace_callback,
         select_workspace_callback,

@@ -1,13 +1,11 @@
 """Sidebar components for settings."""
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import streamlit as st
 
 from app.core.config import (
-    EMBED_MODEL_OPTIONS,
     HF_EMBED_OPTIONS,
-    LLM_MODEL_OPTIONS,
     AppConfig,
     get_ollama_llm_models,
     get_ollama_models,
@@ -17,7 +15,7 @@ from app.ui.callbacks import save_settings_callback
 from app.ui.workspace import render_job_progress
 
 
-def render_llm_settings() -> Dict[str, Any]:
+def render_llm_settings() -> dict[str, Any]:
     """Render LLM settings in sidebar with clear provider separation."""
     st.subheader("🤖 LLM Ayarları")
 
@@ -180,7 +178,7 @@ def render_llm_settings() -> Dict[str, Any]:
     }
 
 
-def render_embedding_settings() -> Dict[str, Any]:
+def render_embedding_settings() -> dict[str, Any]:
     """Render embedding settings in sidebar."""
     st.subheader("🔢 Embedding Ayarları")
 
@@ -286,7 +284,7 @@ def render_embedding_settings() -> Dict[str, Any]:
     }
 
 
-def render_data_settings() -> Dict[str, Any]:
+def render_data_settings() -> dict[str, Any]:
     """Render data and system settings."""
     st.subheader("📁 Veri Ayarları")
 
@@ -425,7 +423,7 @@ def render_active_workspace_summary(db):
             st.rerun()
 
 
-def render_sidebar_content() -> Dict[str, Any]:
+def render_sidebar_content() -> dict[str, Any]:
     """
     Consolidated sidebar rendering function.
 

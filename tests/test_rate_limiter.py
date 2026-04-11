@@ -2,13 +2,10 @@
 
 import time
 
-import pytest
-
 from app.core.rate_limiter import (
     RateLimitConfig,
     RateLimiter,
     RateLimitExceededError,
-    RateLimitInfo,
     SlidingWindowRateLimiter,
     TokenBucket,
     rate_limit,
@@ -64,7 +61,7 @@ class TestSlidingWindowRateLimiter:
         """Test requests within limit are allowed."""
         limiter = SlidingWindowRateLimiter(max_requests=5, window_seconds=60)
 
-        for i in range(5):
+        for _i in range(5):
             allowed, remaining = limiter.is_allowed("user1")
             assert allowed is True
 

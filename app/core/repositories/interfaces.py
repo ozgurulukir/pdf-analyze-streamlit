@@ -1,7 +1,7 @@
 """Repository interfaces for database operations."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.core.models import (
     ChunkMetadata,
@@ -23,17 +23,17 @@ class WorkspaceRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, workspace_id: str) -> Optional[Workspace]:
+    def get_by_id(self, workspace_id: str) -> Workspace | None:
         """Get workspace by ID."""
         pass
 
     @abstractmethod
-    def get_all(self) -> List[Workspace]:
+    def get_all(self) -> list[Workspace]:
         """Get all workspaces."""
         pass
 
     @abstractmethod
-    def get_active(self) -> Optional[Workspace]:
+    def get_active(self) -> Workspace | None:
         """Get the currently active workspace."""
         pass
 
@@ -62,17 +62,17 @@ class FileRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, file_id: str) -> Optional[FileMetadata]:
+    def get_by_id(self, file_id: str) -> FileMetadata | None:
         """Get file by ID."""
         pass
 
     @abstractmethod
-    def get_by_workspace(self, workspace_id: str) -> List[FileMetadata]:
+    def get_by_workspace(self, workspace_id: str) -> list[FileMetadata]:
         """Get all files in a workspace."""
         pass
 
     @abstractmethod
-    def get_by_status(self, workspace_id: str, status: str) -> List[FileMetadata]:
+    def get_by_status(self, workspace_id: str, status: str) -> list[FileMetadata]:
         """Get files by status."""
         pass
 
@@ -101,17 +101,17 @@ class ChunkRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, chunk_id: str) -> Optional[ChunkMetadata]:
+    def get_by_id(self, chunk_id: str) -> ChunkMetadata | None:
         """Get chunk by ID."""
         pass
 
     @abstractmethod
-    def get_by_file(self, file_id: str) -> List[ChunkMetadata]:
+    def get_by_file(self, file_id: str) -> list[ChunkMetadata]:
         """Get all chunks for a file."""
         pass
 
     @abstractmethod
-    def get_by_workspace(self, workspace_id: str) -> List[ChunkMetadata]:
+    def get_by_workspace(self, workspace_id: str) -> list[ChunkMetadata]:
         """Get all chunks in a workspace."""
         pass
 
@@ -140,19 +140,19 @@ class MessageRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, message_id: str) -> Optional[Message]:
+    def get_by_id(self, message_id: str) -> Message | None:
         """Get message by ID."""
         pass
 
     @abstractmethod
     def get_by_workspace(
         self, workspace_id: str, limit: int = 100, offset: int = 0
-    ) -> List[Message]:
+    ) -> list[Message]:
         """Get messages for a workspace with pagination."""
         pass
 
     @abstractmethod
-    def get_recent(self, workspace_id: str, limit: int = 50) -> List[Message]:
+    def get_recent(self, workspace_id: str, limit: int = 50) -> list[Message]:
         """Get recent messages."""
         pass
 
@@ -186,17 +186,17 @@ class QARepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, qa_id: str) -> Optional[QAPair]:
+    def get_by_id(self, qa_id: str) -> QAPair | None:
         """Get Q&A pair by ID."""
         pass
 
     @abstractmethod
-    def get_by_workspace(self, workspace_id: str) -> List[QAPair]:
+    def get_by_workspace(self, workspace_id: str) -> list[QAPair]:
         """Get all Q&A pairs in workspace."""
         pass
 
     @abstractmethod
-    def get_by_file(self, file_id: str) -> List[QAPair]:
+    def get_by_file(self, file_id: str) -> list[QAPair]:
         """Get all Q&A pairs for a file."""
         pass
 
@@ -230,12 +230,12 @@ class PreferencesRepository(ABC):
         pass
 
     @abstractmethod
-    def update_weights(self, weights: Dict[str, float]) -> UserPreferences:
+    def update_weights(self, weights: dict[str, float]) -> UserPreferences:
         """Update preference weights."""
         pass
 
     @abstractmethod
-    def update_config(self, config: Dict[str, Any]) -> UserPreferences:
+    def update_config(self, config: dict[str, Any]) -> UserPreferences:
         """Update configuration."""
         pass
 
@@ -249,22 +249,22 @@ class JobRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, job_id: str) -> Optional[Job]:
+    def get_by_id(self, job_id: str) -> Job | None:
         """Get job by ID."""
         pass
 
     @abstractmethod
-    def get_by_workspace(self, workspace_id: str) -> List[Job]:
+    def get_by_workspace(self, workspace_id: str) -> list[Job]:
         """Get all jobs in workspace."""
         pass
 
     @abstractmethod
-    def get_by_status(self, status: str) -> List[Job]:
+    def get_by_status(self, status: str) -> list[Job]:
         """Get jobs by status."""
         pass
 
     @abstractmethod
-    def get_pending(self, limit: int = 10) -> List[Job]:
+    def get_pending(self, limit: int = 10) -> list[Job]:
         """Get pending jobs."""
         pass
 

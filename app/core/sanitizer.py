@@ -3,7 +3,7 @@
 import html
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from app.core.logger import get_logger
@@ -17,7 +17,7 @@ class SanitizationResult:
 
     is_valid: bool
     sanitized_value: Any
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class Sanitizer:
@@ -233,8 +233,8 @@ class Sanitizer:
 
     @classmethod
     def sanitize_dict(
-        cls, data: Dict[str, Any], schema: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        cls, data: dict[str, Any], schema: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Sanitize a dictionary based on a schema.
 
@@ -354,7 +354,7 @@ def validate_workspace_name(name: str) -> bool:
     return bool(re.match(r"^[a-zA-Z0-9][\w\s\-]*$", name))
 
 
-def validate_file_type(extension: str, allowed: Optional[List[str]] = None) -> bool:
+def validate_file_type(extension: str, allowed: list[str] | None = None) -> bool:
     """
     Validate file extension.
 

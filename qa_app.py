@@ -14,7 +14,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.base import CallbackManager
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 
 import os
 from dotenv import load_dotenv
@@ -96,7 +96,7 @@ def split_texts(text, chunk_size, overlap, split_method):
 @st.cache_resource
 def get_embeddings(embedding_option, openai_api_key):
     if embedding_option == "OpenAI Embeddings":
-        return OpenAIEmbeddings(openai_api_key=openai_api_key)
+        return OpenAIEmbeddings()
     elif embedding_option == "HuggingFace Embeddings(slower)":
         return HuggingFaceEmbeddings()
     return None
@@ -152,7 +152,8 @@ def main():
         """
         <style>
 
-        #MainMenu {visibility: hidden;}
+        #MainMenu {visibility: hidden;
+        # }
             footer {visibility: hidden;
             }
             .css-card {
@@ -266,7 +267,7 @@ def main():
 
         # Embed using OpenAI embeddings
             # Embed using OpenAI embeddings or HuggingFace embeddings
-        embeddings = get_embeddings(embedding_option, openai_api_key if embedding_option == "OpenAI Embeddings" else None)
+        embeddings = get_embeddings(embedding_option, openai_api_key)
 
         retriever = create_retriever(embeddings, splits, retriever_type)
 
