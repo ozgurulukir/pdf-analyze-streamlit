@@ -1,7 +1,8 @@
 """Tests for core loader module."""
-import unittest
-from unittest.mock import Mock, patch, MagicMock
+
 import io
+import unittest
+from unittest.mock import MagicMock, Mock, patch
 
 from app.core.loader import DocumentLoader
 
@@ -22,7 +23,7 @@ class TestDocumentLoader(unittest.TestCase):
         mock_reader = Mock()
         mock_reader.pages = [mock_page]
 
-        with patch('app.core.loader.PdfReader', return_value=mock_reader):
+        with patch("app.core.loader.PdfReader", return_value=mock_reader):
             file_io = io.BytesIO(b"mock pdf")
             result = DocumentLoader.load_pdf(file_io)
 
@@ -30,7 +31,7 @@ class TestDocumentLoader(unittest.TestCase):
 
     def test_load_pdf_error(self):
         """Test PDF loading error handling."""
-        with patch('app.core.loader.PdfReader', side_effect=Exception("PDF Error")):
+        with patch("app.core.loader.PdfReader", side_effect=Exception("PDF Error")):
             file_io = io.BytesIO(b"mock pdf")
 
             # Should not raise, should return empty string
@@ -48,7 +49,7 @@ class TestDocumentLoader(unittest.TestCase):
     def test_load_txt_multiple_encodings(self):
         """Test text file loading with different encodings."""
         # Test with latin-1 encoding
-        file_io = io.BytesIO("Héllo".encode('latin-1'))
+        file_io = io.BytesIO("Héllo".encode("latin-1"))
 
         result = DocumentLoader.load_txt(file_io)
         self.assertEqual(result, "Héllo")
@@ -75,8 +76,10 @@ class TestDocumentLoader(unittest.TestCase):
         mock_txt.getvalue.return_value = b"text content"
         mock_txt.size = 500
 
-        with patch('app.core.loader.DocumentLoader.load_pdf', return_value="PDF text"):
-            with patch('app.core.loader.DocumentLoader.load_txt', return_value="TXT text"):
+        with patch("app.core.loader.DocumentLoader.load_pdf", return_value="PDF text"):
+            with patch(
+                "app.core.loader.DocumentLoader.load_txt", return_value="TXT text"
+            ):
                 documents = DocumentLoader.load_documents([mock_pdf, mock_txt])
 
                 self.assertEqual(len(documents), 2)
@@ -90,10 +93,10 @@ class TestDocumentLoader(unittest.TestCase):
         mock_file.getvalue.return_value = b""
         mock_file.size = 0
 
-        with patch('app.core.loader.DocumentLoader.load_file', return_value=""):
+        with patch("app.core.loader.DocumentLoader.load_file", return_value=""):
             documents = DocumentLoader.load_documents([mock_file])
             self.assertEqual(len(documents), 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

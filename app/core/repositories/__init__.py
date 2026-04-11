@@ -1,17 +1,18 @@
 """Repository module initialization."""
+
 from app.core.repositories.interfaces import (
-    WorkspaceRepository,
-    FileRepository,
     ChunkRepository,
-    MessageRepository,
-    QARepository,
-    PreferencesRepository,
+    FileRepository,
     JobRepository,
+    MessageRepository,
+    PreferencesRepository,
+    QARepository,
+    WorkspaceRepository,
 )
 from app.core.repositories.sqlite_repositories import (
-    SQLiteWorkspaceRepository,
     SQLiteFileRepository,
     SQLiteMessageRepository,
+    SQLiteWorkspaceRepository,
 )
 
 __all__ = [

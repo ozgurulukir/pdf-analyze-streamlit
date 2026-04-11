@@ -1,7 +1,9 @@
 """Pytest configuration and fixtures."""
+
 import os
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 # Set environment variables for testing
 os.environ["OPENAI_API_KEY"] = "sk-test-key"
@@ -37,11 +39,7 @@ def mock_document():
 
     return Document(
         page_content="Sample document content for testing",
-        metadata={
-            "source": "test.pdf",
-            "type": "pdf",
-            "size": 1024
-        }
+        metadata={"source": "test.pdf", "type": "pdf", "size": 1024},
     )
 
 
@@ -53,16 +51,16 @@ def mock_documents(mock_document):
     return [
         Document(
             page_content="First document content",
-            metadata={"source": "doc1.pdf", "type": "pdf", "size": 1024}
+            metadata={"source": "doc1.pdf", "type": "pdf", "size": 1024},
         ),
         Document(
             page_content="Second document content",
-            metadata={"source": "doc2.pdf", "type": "pdf", "size": 2048}
+            metadata={"source": "doc2.pdf", "type": "pdf", "size": 2048},
         ),
         Document(
             page_content="Third document content",
-            metadata={"source": "doc3.txt", "type": "txt", "size": 512}
-        )
+            metadata={"source": "doc3.txt", "type": "txt", "size": 512},
+        ),
     ]
 
 
@@ -80,7 +78,5 @@ def app_config():
     from app.core.config import AppConfig
 
     return AppConfig(
-        CHUNK_SIZE=500,
-        CHUNK_OVERLAP=100,
-        EMBEDDING_MODEL="text-embedding-3-small"
+        CHUNK_SIZE=500, CHUNK_OVERLAP=100, EMBEDDING_MODEL="text-embedding-3-small"
     )

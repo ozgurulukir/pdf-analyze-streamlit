@@ -1,16 +1,18 @@
 """Background job queue and worker management."""
-import threading
+
 import queue
+import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, Future
-from typing import List, Optional, Callable, Dict, Any
+from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
+
 import streamlit as st
 
-from app.core.models import Job
-from app.core.database import DatabaseManager
-from app.core.constants import ProcessingStatus, UIConstants
 from app.core.config import AppConfig
-from datetime import datetime
+from app.core.constants import ProcessingStatus, UIConstants
+from app.core.database import DatabaseManager
+from app.core.models import Job
 
 
 class JobQueue:
@@ -30,7 +32,7 @@ class JobQueue:
         file_ids: List[str],
         task_func: Callable,
         task_args: tuple = (),
-        task_kwargs: dict = None
+        task_kwargs: dict = None,
     ) -> Job:
         """Submit a new job to the queue."""
         if task_kwargs is None:
@@ -44,7 +46,7 @@ class JobQueue:
             status=ProcessingStatus.PENDING,
             total=len(file_ids) if file_ids else 1,
             current=0,
-            progress=0.0
+            progress=0.0,
         )
 
         # Save to database
@@ -56,21 +58,13 @@ class JobQueue:
 
         # Create future
         future = self._executor.submit(
-            self._run_job,
-            job,
-            task_func,
-            task_args,
-            task_kwargs
+            self._run_job, job, task_func, task_args, task_kwargs
         )
 
         return job
 
     def _run_job(
-        self,
-        job: Job,
-        task_func: Callable,
-        task_args: tuple,
-        task_kwargs: dict
+        self, job: Job, task_func: Callable, task_args: tuple, task_kwargs: dict
     ):
         """Run a job in the background."""
         job.status = ProcessingStatus.RUNNING
@@ -89,9 +83,7 @@ class JobQueue:
 
             # Run the task
             result = task_func(
-                *task_args,
-                progress_callback=update_progress,
-                **task_kwargs
+                *task_args, progress_callback=update_progress, **task_kwargs
             )
 
             # Mark as completed
@@ -119,10 +111,10 @@ class JobQueue:
         """Get all active (pending/running) jobs."""
         with self._lock:
             jobs = list(self._jobs.values())
-        
+
         if workspace_id:
             jobs = [j for j in jobs if j.workspace_id == workspace_id]
-        
+
         return [j for j in jobs if j.status in ("pending", "running")]
 
     def get_job_status(self, job_id: str) -> Optional[Job]:
@@ -178,23 +170,24 @@ class EmbeddingWorker:
         workspace_name: str,
         db: DatabaseManager,
         embedding_settings: Optional[Dict[str, Any]] = None,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
     ) -> Dict[str, Any]:
         """Process files: chunk, embed, and upsert to Chroma."""
         from app.core.models import FileMetadata
 
-        results = {
-            "success": [],
-            "failed": []
-        }
+        results = {"success": [], "failed": []}
 
         total_files = len(files)
-        
+
         for idx, file_data in enumerate(files):
             try:
                 # Update progress
                 if progress_callback:
-                    progress_callback(idx, total_files, f"İşleniyor: {file_data.get('filename', 'Dosya')}")
+                    progress_callback(
+                        idx,
+                        total_files,
+                        f"İşleniyor: {file_data.get('filename', 'Dosya')}",
+                    )
 
                 # Get file metadata from DB
                 file_meta = file_data.get("file_metadata")
@@ -207,15 +200,21 @@ class EmbeddingWorker:
 
                 # Check if Chroma already has chunks for this stable ID
                 existing_chunks = None
-                collection = self.chroma_manager.get_collection(workspace_id, workspace_name)
+                collection = self.chroma_manager.get_collection(
+                    workspace_id, workspace_name
+                )
                 if collection:
                     try:
                         # Get a sample to see if it exists
-                        existing = collection.get(where={"file_id": file_meta.id}, limit=1)
+                        existing = collection.get(
+                            where={"file_id": file_meta.id}, limit=1
+                        )
                         if existing and existing.get("ids"):
                             # It exists! We can skip embedding if we find all chunks?
                             # For simplicity, if at least one chunk exists, we check the count
-                            all_existing = collection.get(where={"file_id": file_meta.id})
+                            all_existing = collection.get(
+                                where={"file_id": file_meta.id}
+                            )
                             existing_chunks = all_existing.get("ids")
                     except Exception:
                         pass
@@ -224,16 +223,20 @@ class EmbeddingWorker:
                     # Skip embedding, just update metadata
                     chunks_count = len(existing_chunks)
                     if progress_callback:
-                        progress_callback(idx, total_files, f"Mevcut vektörler kullanılıyor: {file_data.get('filename')}")
+                        progress_callback(
+                            idx,
+                            total_files,
+                            f"Mevcut vektörler kullanılıyor: {file_data.get('filename')}",
+                        )
                 else:
                     # Chunk the text
                     chunks = self.chunk_manager.chunk_text(file_data.get("text", ""))
                     chunks_count = len(chunks)
-                    
+
                     # Get embeddings
                     if chunks:
                         embeddings = self.embedding_manager.get_embeddings(chunks)
-                        
+
                         # Upsert to Chroma
                         self.chroma_manager.add_chunks(
                             workspace_id=workspace_id,
@@ -241,7 +244,7 @@ class EmbeddingWorker:
                             file_id=file_meta.id,
                             chunks=chunks,
                             embeddings=embeddings,
-                            source=file_meta.original_name
+                            source=file_meta.original_name,
                         )
 
                 # Update file status
@@ -258,11 +261,10 @@ class EmbeddingWorker:
                     file_meta.status = ProcessingStatus.ERROR
                     file_meta.error_message = str(e)
                     db.update_file(file_meta)
-                
-                results["failed"].append({
-                    "file_id": file_data.get("id"),
-                    "error": str(e)
-                })
+
+                results["failed"].append(
+                    {"file_id": file_data.get("id"), "error": str(e)}
+                )
 
         # Final progress update
         if progress_callback:
@@ -276,38 +278,50 @@ def create_embedding_job(
     workspace_id: str,
     workspace_name: str,
     db: DatabaseManager,
-    embedding_settings: Optional[Dict[str, Any]] = None
+    embedding_settings: Optional[Dict[str, Any]] = None,
 ) -> Job:
     """Create a background job for embedding processing."""
-    from app.core.chroma import EmbeddingManager, ChunkManager, ChromaManager
-    
+    from app.core.chroma import ChromaManager, ChunkManager, EmbeddingManager
+
     # Initialize managers with settings if provided
     if embedding_settings:
         embedding_manager = EmbeddingManager(
             use_huggingface=embedding_settings.get("use_huggingface", False),
             ollama_model=embedding_settings.get("model_name", "nomic-embed-text"),
             ollama_url=embedding_settings.get("ollama_url", "http://localhost:11434"),
-            hf_model=embedding_settings.get("model_name", "sentence-transformers/all-MiniLM-L6-v2")
+            hf_model=embedding_settings.get(
+                "model_name", "sentence-transformers/all-MiniLM-L6-v2"
+            ),
         )
     else:
         embedding_manager = EmbeddingManager()
-        
+
     # Dynamic chunking strategy (Default to UIConstants or provided settings)
     ui_chunk_size = embedding_settings.get("chunk_size") if embedding_settings else None
-    ui_chunk_overlap = embedding_settings.get("chunk_overlap") if embedding_settings else None
-    
+    ui_chunk_overlap = (
+        embedding_settings.get("chunk_overlap") if embedding_settings else None
+    )
+
     chunk_size = ui_chunk_size or UIConstants.DEFAULT_CHUNK_SIZE
     chunk_overlap = ui_chunk_overlap or UIConstants.DEFAULT_CHUNK_OVERLAP
-    
-    if embedding_settings and embedding_settings.get("use_huggingface") and not ui_chunk_size:
+
+    if (
+        embedding_settings
+        and embedding_settings.get("use_huggingface")
+        and not ui_chunk_size
+    ):
         # Fallback for HF if no custom size provided
         chunk_size = 500
         chunk_overlap = 50
-        
+
     chunk_manager = ChunkManager(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    
+
     config = AppConfig()
-    chroma_path = embedding_settings.get("chroma_path", config.CHROMA_PERSIST_DIR) if embedding_settings else config.CHROMA_PERSIST_DIR
+    chroma_path = (
+        embedding_settings.get("chroma_path", config.CHROMA_PERSIST_DIR)
+        if embedding_settings
+        else config.CHROMA_PERSIST_DIR
+    )
     chroma_manager = ChromaManager(persist_directory=chroma_path)
 
     worker = EmbeddingWorker(embedding_manager, chunk_manager, chroma_manager)
@@ -323,6 +337,6 @@ def create_embedding_job(
             "workspace_id": workspace_id,
             "workspace_name": workspace_name,
             "db": db,
-            "embedding_settings": embedding_settings
-        }
+            "embedding_settings": embedding_settings,
+        },
     )
