@@ -1,20 +1,20 @@
 """Database manager for SQLite storage."""
 
-import sqlite3
 import json
+import sqlite3
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Union
+
+from app.core.config import AppConfig
+from app.core.exceptions import DatabaseError
+from app.core.logger import logger
 from app.core.models import (
-    Workspace,
     FileMetadata,
+    Job,
     Message,
     QAPair,
     UserPreferences,
-    Job,
+    Workspace,
 )
-from app.core.exceptions import DatabaseError
-from app.core.logger import logger
-from app.core.config import AppConfig
 
 
 class DatabaseManager:
@@ -25,7 +25,7 @@ class DatabaseManager:
     user preferences, and background jobs.
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         """
         Initialize the database manager.
 
@@ -226,7 +226,7 @@ class DatabaseManager:
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to create workspace: {e}")
 
-    def get_workspaces(self) -> List[Workspace]:
+    def get_workspaces(self) -> list[Workspace]:
         """
         Get all workspaces with synchronized file counts.
 
@@ -244,8 +244,8 @@ class DatabaseManager:
                 cursor.execute("""
                     UPDATE workspaces
                     SET file_count = (
-                        SELECT COUNT(*) 
-                        FROM files 
+                        SELECT COUNT(*)
+                        FROM files
                         WHERE files.workspace_id = workspaces.id
                     )
                 """)
@@ -257,7 +257,7 @@ class DatabaseManager:
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to fetch workspaces: {e}")
 
-    def get_workspace(self, workspace_id: str) -> Optional[Workspace]:
+    def get_workspace(self, workspace_id: str) -> Workspace | None:
         """
         Retrieve a specific workspace by its ID.
 
@@ -297,7 +297,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    UPDATE workspaces 
+                    UPDATE workspaces
                     SET name = ?, description = ?, last_modified = ?, file_count = ?, is_active = ?
                     WHERE id = ?
                 """,
@@ -380,7 +380,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO files (id, workspace_id, filename, original_name, file_type, size, status, 
+                    INSERT INTO files (id, workspace_id, filename, original_name, file_type, size, status,
                                      chunk_count, content_hash, uploaded_at, processed_at, error_message, tags)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -408,8 +408,8 @@ class DatabaseManager:
                 # Auto-increment workspace file count
                 cursor.execute(
                     """
-                    UPDATE workspaces 
-                    SET file_count = file_count + 1 
+                    UPDATE workspaces
+                    SET file_count = file_count + 1
                     WHERE id = ?
                 """,
                     (file_meta.workspace_id,),
@@ -420,7 +420,7 @@ class DatabaseManager:
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to create file record: {e}")
 
-    def get_files(self, workspace_id: str) -> List[FileMetadata]:
+    def get_files(self, workspace_id: str) -> list[FileMetadata]:
         """
         Fetch all files associated with a workspace.
 
@@ -465,7 +465,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    UPDATE files 
+                    UPDATE files
                     SET status = ?, chunk_count = ?, processed_at = ?, error_message = ?, tags = ?
                     WHERE id = ?
                 """,
@@ -514,8 +514,8 @@ class DatabaseManager:
                     workspace_id = row["workspace_id"]
                     cursor.execute(
                         """
-                        UPDATE workspaces 
-                        SET file_count = MAX(0, file_count - 1) 
+                        UPDATE workspaces
+                        SET file_count = MAX(0, file_count - 1)
                         WHERE id = ?
                     """,
                         (workspace_id,),
@@ -564,8 +564,8 @@ class DatabaseManager:
             raise DatabaseError(f"Failed to add message: {e}")
 
     def get_messages(
-        self, workspace_id: Optional[str] = None, limit: int = 100
-    ) -> List[Message]:
+        self, workspace_id: str | None = None, limit: int = 100
+    ) -> list[Message]:
         """
         Fetch chat history, optionally filtered by workspace.
 
@@ -585,8 +585,8 @@ class DatabaseManager:
                 if workspace_id:
                     cursor.execute(
                         """
-                        SELECT * FROM messages 
-                        WHERE workspace_id = ? 
+                        SELECT * FROM messages
+                        WHERE workspace_id = ?
                         ORDER BY timestamp DESC LIMIT ?
                     """,
                         (workspace_id, limit),
@@ -602,7 +602,7 @@ class DatabaseManager:
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to fetch messages: {e}")
 
-    def clear_messages(self, workspace_id: Optional[str] = None) -> None:
+    def clear_messages(self, workspace_id: str | None = None) -> None:
         """
         Delete chat history.
 
@@ -664,7 +664,7 @@ class DatabaseManager:
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to create Q&A pair: {e}")
 
-    def get_qa_pairs(self, workspace_id: Optional[str] = None) -> List[QAPair]:
+    def get_qa_pairs(self, workspace_id: str | None = None) -> list[QAPair]:
         """
         Retrieve Q&A pairs.
 
@@ -786,7 +786,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO jobs (id, job_type, workspace_id, file_ids, status, progress, total, current, 
+                    INSERT INTO jobs (id, job_type, workspace_id, file_ids, status, progress, total, current,
                                     error_message, created_at, started_at, completed_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -828,7 +828,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    UPDATE jobs 
+                    UPDATE jobs
                     SET status = ?, progress = ?, total = ?, current = ?, error_message = ?,
                         started_at = ?, completed_at = ?
                     WHERE id = ?
@@ -849,7 +849,7 @@ class DatabaseManager:
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to update job {job.id}: {e}")
 
-    def get_jobs(self, workspace_id: Optional[str] = None) -> List[Job]:
+    def get_jobs(self, workspace_id: str | None = None) -> list[Job]:
         """
         Fetch active jobs (pending or running).
 
@@ -868,7 +868,7 @@ class DatabaseManager:
                 if workspace_id:
                     cursor.execute(
                         """
-                        SELECT * FROM jobs 
+                        SELECT * FROM jobs
                         WHERE workspace_id = ? AND status IN ('pending', 'running')
                         ORDER BY created_at DESC
                     """,
@@ -876,7 +876,7 @@ class DatabaseManager:
                     )
                 else:
                     cursor.execute("""
-                        SELECT * FROM jobs 
+                        SELECT * FROM jobs
                         WHERE status IN ('pending', 'running')
                         ORDER BY created_at DESC
                     """)

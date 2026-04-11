@@ -1,8 +1,9 @@
 """Custom exception classes for specific error handling."""
 
-from typing import Optional, Any, Dict
-from functools import wraps
 import time
+from functools import wraps
+from typing import Any
+
 import requests
 
 from app.core.logger import get_logger
@@ -18,7 +19,7 @@ logger = get_logger(__name__)
 class AppError(Exception):
     """Base class for all application errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         """
         Initialize the error.
 

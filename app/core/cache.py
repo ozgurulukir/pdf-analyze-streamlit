@@ -1,15 +1,16 @@
 """Caching layer with Streamlit integration for improved performance."""
 
-import time
 import hashlib
 import json
-import streamlit as st
-from typing import Any, Optional, Callable, TypeVar, Dict, List
+from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
-from collections import OrderedDict
 from threading import Lock
+from typing import Any, TypeVar
+
+import streamlit as st
 
 from app.core.logger import get_logger
 
@@ -63,7 +64,7 @@ class LRUCache:
         self._lock = Lock()
         self._stats = {"hits": 0, "misses": 0, "evictions": 0, "expirations": 0}
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Get a value from cache.
 
@@ -92,7 +93,7 @@ class LRUCache:
 
             return entry.value
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+    def set(self, key: str, value: Any, ttl: int | None = None) -> None:
         """Set a value in cache with optional TTL."""
         with self._lock:
             if key in self._cache:
@@ -128,7 +129,7 @@ class LRUCache:
         with self._lock:
             self._cache.clear()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         with self._lock:
             total = self._stats["hits"] + self._stats["misses"]
@@ -149,10 +150,10 @@ class LRUCache:
 # Global Cache Instances
 # ===================
 
-_message_cache: Optional[LRUCache] = None
-_embedding_cache: Optional[LRUCache] = None
-_llm_response_cache: Optional[LRUCache] = None
-_query_cache: Optional[LRUCache] = None
+_message_cache: LRUCache | None = None
+_embedding_cache: LRUCache | None = None
+_llm_response_cache: LRUCache | None = None
+_query_cache: LRUCache | None = None
 
 
 def get_message_cache() -> LRUCache:
@@ -194,8 +195,8 @@ def get_query_cache() -> LRUCache:
 
 def cached(
     cache: LRUCache,
-    key_func: Optional[Callable[..., str]] = None,
-    ttl: Optional[int] = None,
+    key_func: Callable[..., str] | None = None,
+    ttl: int | None = None,
 ):
     """
     Decorator to cache function results in LRU cache.
@@ -251,7 +252,7 @@ def get_cached_database_manager():
 
 
 @st.cache_resource
-def get_cached_chroma_manager(_config: Dict[str, Any] = None):
+def get_cached_chroma_manager(_config: dict[str, Any] = None):
     """
     Get cached ChromaManager instance (singleton via Streamlit).
 
@@ -292,7 +293,7 @@ def get_cached_embedding_manager(
 
 
 @st.cache_data(ttl=300, max_entries=100)
-def cached_get_workspaces() -> List[Dict[str, Any]]:
+def cached_get_workspaces() -> list[dict[str, Any]]:
     """
     Get all workspaces (cached for 5 minutes).
     Returns list of workspace dicts for better serialization.
@@ -305,7 +306,7 @@ def cached_get_workspaces() -> List[Dict[str, Any]]:
 
 
 @st.cache_data(ttl=60, max_entries=50)
-def cached_get_workspace_files(workspace_id: str) -> List[Dict[str, Any]]:
+def cached_get_workspace_files(workspace_id: str) -> list[dict[str, Any]]:
     """
     Get files for a workspace (cached for 1 minute).
 
@@ -320,7 +321,7 @@ def cached_get_workspace_files(workspace_id: str) -> List[Dict[str, Any]]:
 
 
 @st.cache_data(ttl=120, max_entries=30)
-def cached_get_messages(workspace_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+def cached_get_messages(workspace_id: str, limit: int = 50) -> list[dict[str, Any]]:
     """
     Get chat messages for a workspace (cached for 2 minutes).
 
@@ -338,7 +339,7 @@ def cached_get_messages(workspace_id: str, limit: int = 50) -> List[Dict[str, An
 @st.cache_data(ttl=3600, max_entries=500)
 def cached_get_embedding(
     text_hash: str, text: str, _embedding_manager: Any
-) -> List[float]:
+) -> list[float]:
     """
     Get embedding for text (cached for 1 hour).
 
@@ -357,8 +358,8 @@ def cached_chroma_query(
     query_hash: str,
     n_results: int,
     _chroma_manager: Any,
-    _query_embedding: List[float],
-) -> Dict[str, Any]:
+    _query_embedding: list[float],
+) -> dict[str, Any]:
     """
     Cached ChromaDB similarity search (30 minutes TTL).
 
@@ -449,7 +450,7 @@ def text_hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
-def clear_all_caches() -> Dict[str, Dict[str, Any]]:
+def clear_all_caches() -> dict[str, dict[str, Any]]:
     """
     Clear all application caches.
 
@@ -482,7 +483,7 @@ def clear_all_caches() -> Dict[str, Dict[str, Any]]:
     return stats
 
 
-def get_cache_stats() -> Dict[str, Dict[str, Any]]:
+def get_cache_stats() -> dict[str, dict[str, Any]]:
     """Get statistics for all caches."""
     return {
         "message_cache": get_message_cache().get_stats(),

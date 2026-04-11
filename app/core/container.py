@@ -1,11 +1,14 @@
 """Dependency injection container for application services."""
 
-from typing import Dict, Type, TypeVar, Callable, Any, Optional, get_type_hints
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from functools import wraps
+from typing import Any, TypeVar, get_type_hints
 
-from app.core.logger import get_logger
+from app.core.chroma import ChromaManager, EmbeddingManager
 from app.core.config import AppConfig
+from app.core.database import DatabaseManager
+from app.core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -24,7 +27,7 @@ class Dependency:
 
     factory: Callable[..., Any]
     singleton: bool = True
-    instance: Optional[Any] = None
+    instance: Any | None = None
 
 
 class Container:
@@ -45,13 +48,13 @@ class Container:
 
     def __init__(self):
         """Initialize the container."""
-        self._dependencies: Dict[str, Dependency] = {}
-        self._singletons: Dict[str, Any] = {}
+        self._dependencies: dict[str, Dependency] = {}
+        self._singletons: dict[str, Any] = {}
 
     def register(
         self,
-        interface: Type[T],
-        factory: Optional[Callable[..., T]] = None,
+        interface: type[T],
+        factory: Callable[..., T] | None = None,
         singleton: bool = True,
     ) -> None:
         """
@@ -71,7 +74,7 @@ class Container:
         self._dependencies[name] = Dependency(factory=factory, singleton=singleton)
         logger.debug(f"Registered dependency: {name} (singleton={singleton})")
 
-    def register_instance(self, interface: Type[T], instance: T) -> None:
+    def register_instance(self, interface: type[T], instance: T) -> None:
         """
         Register an existing instance.
 
@@ -86,7 +89,7 @@ class Container:
         self._singletons[name] = instance
         logger.debug(f"Registered instance: {name}")
 
-    def resolve(self, interface: Type[T], *args, **kwargs) -> T:
+    def resolve(self, interface: type[T], *args, **kwargs) -> T:
         """
         Resolve a dependency.
 
@@ -152,8 +155,7 @@ class Container:
         # Get function signature
         import inspect
 
-        sig = inspect.signature(func)
-        params = sig.parameters
+        inspect.signature(func)
 
         # Resolve dependencies from type hints
         deps = self.resolve_dependencies(func)
@@ -171,7 +173,7 @@ class Container:
         logger.debug("Container cleared")
 
     @staticmethod
-    def _get_name(interface: Type) -> str:
+    def _get_name(interface: type) -> str:
         """Get the name for an interface."""
         if hasattr(interface, "__name__"):
             return interface.__name__
@@ -252,7 +254,7 @@ class AppContainer(Container):
 # Global Container
 # ===================
 
-_global_container: Optional[AppContainer] = None
+_global_container: AppContainer | None = None
 
 
 def get_container() -> AppContainer:

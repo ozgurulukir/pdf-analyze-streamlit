@@ -1,22 +1,20 @@
 """RAG orchestration with LangChain, Ollama, and ChromaDB."""
 
-import json
 import collections
-from typing import List, Optional, Dict, Any, Generator, Tuple, Union
-from datetime import datetime
+from collections.abc import Generator
+from typing import Any
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
 
-from app.core.models import Message, QAPair, UserPreferences
-from app.core.database import DatabaseManager
 from app.core.chroma import ChromaManager, EmbeddingManager
-from app.core.exceptions import LLMError, ChromaError
-from app.core.logger import logger
 from app.core.config import AppConfig
+from app.core.database import DatabaseManager
+from app.core.exceptions import ChromaError, LLMError
+from app.core.logger import logger
+from app.core.models import Message, QAPair, UserPreferences
 
 
 def create_llm(
@@ -81,7 +79,7 @@ class MessageCache:
         """Add a message to the cache."""
         self.messages.append(message)
 
-    def get_all(self) -> List[Message]:
+    def get_all(self) -> list[Message]:
         """Return all cached messages in chronological order."""
         return list(self.messages)
 
@@ -89,7 +87,7 @@ class MessageCache:
         """Wipe the cache."""
         self.messages.clear()
 
-    def to_langchain(self) -> List[Any]:
+    def to_langchain(self) -> list[Any]:
         """Convert cached messages to LangChain message format."""
         lc_messages = []
         for msg in self.messages:
@@ -113,7 +111,7 @@ class QAManager:
         self.db = db
 
     def save_qa(
-        self, workspace_id: str, question: str, answer: str, file_ids: List[str]
+        self, workspace_id: str, question: str, answer: str, file_ids: list[str]
     ) -> QAPair:
         """
         Create and persist a new Q&A pair.
@@ -135,7 +133,7 @@ class QAManager:
         )
         return self.db.create_qa_pair(qa)
 
-    def get_workspace_qa(self, workspace_id: str) -> List[QAPair]:
+    def get_workspace_qa(self, workspace_id: str) -> list[QAPair]:
         """Fetch all QA pairs for a workspace."""
         return self.db.get_qa_pairs(workspace_id)
 
@@ -178,7 +176,7 @@ class RAGChain:
         db: DatabaseManager,
         chroma: ChromaManager,
         embedding: EmbeddingManager,
-        llm_config: Dict[str, Any],
+        llm_config: dict[str, Any],
         workspace_id: str,
     ):
         """
@@ -237,7 +235,7 @@ class RAGChain:
             else "Bağlama dayalı yardımcı bir yanıt ver."
         )
 
-    def stream_query(self, question: str) -> Generator[Dict[str, Any], None, None]:
+    def stream_query(self, question: str) -> Generator[dict[str, Any], None, None]:
         """
         Execute RAG query and yield tokens in a stream.
 
@@ -276,7 +274,7 @@ class RAGChain:
                 context_text = "\n\n".join(docs)
 
             # 2. Extract sources
-            sources = list(set([m.get("source", "Bilinmeyen") for m in metadatas]))
+            sources = list({m.get("source", "Bilinmeyen") for m in metadatas})
             if sources:
                 yield {"type": "sources", "content": sources}
 

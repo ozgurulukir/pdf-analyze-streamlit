@@ -1,14 +1,11 @@
 """Unit tests for sanitization utilities."""
 
-import pytest
-
 from app.core.sanitizer import (
     Sanitizer,
-    SanitizationResult,
     validate_email,
+    validate_file_type,
     validate_uuid,
     validate_workspace_name,
-    validate_file_type,
 )
 
 

@@ -1,12 +1,11 @@
 """Rate limiting utilities for API calls."""
 
 import time
-from typing import Dict, Optional, Any
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from collections import defaultdict
-from threading import Lock
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from functools import wraps
+from threading import Lock
 
 from app.core.logger import get_logger
 
@@ -30,7 +29,7 @@ class RateLimitInfo:
     allowed: bool
     remaining: int
     reset_at: datetime
-    retry_after: Optional[float] = None
+    retry_after: float | None = None
     message: str = ""
 
 
@@ -107,7 +106,7 @@ class SlidingWindowRateLimiter:
         """
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self.requests: Dict[str, list] = defaultdict(list)
+        self.requests: dict[str, list] = defaultdict(list)
         self._lock = Lock()
 
     def _cleanup_old_requests(self, key: str) -> None:
@@ -158,7 +157,7 @@ class RateLimiter:
     Combined rate limiter using token bucket and sliding window.
     """
 
-    def __init__(self, config: Optional[RateLimitConfig] = None):
+    def __init__(self, config: RateLimitConfig | None = None):
         """
         Initialize rate limiter.
 
@@ -249,7 +248,7 @@ class RateLimiter:
 # Global Rate Limiter
 # ===================
 
-_global_limiter: Optional[RateLimiter] = None
+_global_limiter: RateLimiter | None = None
 
 
 def get_rate_limiter() -> RateLimiter:
@@ -271,7 +270,7 @@ def get_rate_limiter() -> RateLimiter:
     return _global_limiter
 
 
-def rate_limit(key_func: Optional[callable] = None):
+def rate_limit(key_func: callable | None = None):
     """
     Decorator to apply rate limiting to a function.
 
@@ -323,8 +322,8 @@ class RateLimitExceededError(Exception):
     def __init__(
         self,
         message: str,
-        retry_after: Optional[float] = None,
-        reset_at: Optional[datetime] = None,
+        retry_after: float | None = None,
+        reset_at: datetime | None = None,
     ):
         super().__init__(message)
         self.message = message
@@ -349,7 +348,7 @@ class LLMRateLimiter:
 
     def __init__(self):
         """Initialize LLM rate limiter."""
-        self._limiters: Dict[str, RateLimiter] = {}
+        self._limiters: dict[str, RateLimiter] = {}
         self._lock = Lock()
 
     def get_limiter(self, model: str) -> RateLimiter:
@@ -381,7 +380,7 @@ class LLMRateLimiter:
 
 
 # Global LLM rate limiter
-_llm_limiter: Optional[LLMRateLimiter] = None
+_llm_limiter: LLMRateLimiter | None = None
 
 
 def get_llm_limiter() -> LLMRateLimiter:

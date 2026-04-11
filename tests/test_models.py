@@ -1,16 +1,13 @@
 """Unit tests for core models."""
 
 import pytest
-from datetime import datetime
 
 from app.core.models import (
-    WorkspaceModel,
     FileMetadataModel,
-    ChunkMetadataModel,
-    MessageModel,
-    QAPairModel,
-    UserPreferencesModel,
     JobModel,
+    MessageModel,
+    UserPreferencesModel,
+    WorkspaceModel,
 )
 
 

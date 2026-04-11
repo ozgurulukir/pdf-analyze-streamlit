@@ -1,7 +1,9 @@
 """Router module for page navigation."""
 
-from typing import Dict, Any, Callable, Optional
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
+
 from app.core.constants import UIPages
 
 
@@ -11,8 +13,8 @@ class PageRoute:
 
     name: str
     render_func: Callable
-    icon: Optional[str] = None
-    description: Optional[str] = None
+    icon: str | None = None
+    description: str | None = None
 
 
 class PageRouter:
@@ -23,14 +25,14 @@ class PageRouter:
 
     def __init__(self):
         """Initialize the router with registered pages."""
-        self._pages: Dict[str, PageRoute] = {}
+        self._pages: dict[str, PageRoute] = {}
 
     def register(
         self,
         name: str,
         render_func: Callable,
-        icon: Optional[str] = None,
-        description: Optional[str] = None,
+        icon: str | None = None,
+        description: str | None = None,
     ) -> None:
         """
         Register a page with the router.
@@ -45,7 +47,7 @@ class PageRouter:
             name=name, render_func=render_func, icon=icon, description=description
         )
 
-    def get_page(self, name: str) -> Optional[PageRoute]:
+    def get_page(self, name: str) -> PageRoute | None:
         """
         Get a registered page by name.
 
@@ -80,7 +82,7 @@ class PageRouter:
         """Get list of registered page names."""
         return list(self._pages.keys())
 
-    def get_pages(self) -> Dict[str, PageRoute]:
+    def get_pages(self) -> dict[str, PageRoute]:
         """Get all registered pages."""
         return self._pages.copy()
 
@@ -131,7 +133,7 @@ def create_router(
     return router
 
 
-def resolve_page(selected_page: str, settings: Dict[str, Any]) -> None:
+def resolve_page(selected_page: str, settings: dict[str, Any]) -> None:
     """
     Resolve and render a page based on selection.
     This replaces the if/elif chain in main.py.

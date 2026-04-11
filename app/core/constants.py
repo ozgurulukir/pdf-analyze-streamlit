@@ -1,7 +1,6 @@
 """Centralized constants and enums for the application."""
 
 from enum import Enum
-from typing import Dict, List
 
 
 class SessionKeys(str, Enum):
@@ -200,8 +199,8 @@ class RAGDefaults:
 class FileTypes:
     """Supported file types."""
 
-    ALLOWED_EXTENSIONS: List[str] = ["pdf", "txt", "docx", "html", "md", "pptx", "xlsx"]
-    MIME_TYPES: Dict[str, str] = {
+    ALLOWED_EXTENSIONS: list[str] = ["pdf", "txt", "docx", "html", "md", "pptx", "xlsx"]
+    MIME_TYPES: dict[str, str] = {
         "pdf": "application/pdf",
         "txt": "text/plain",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

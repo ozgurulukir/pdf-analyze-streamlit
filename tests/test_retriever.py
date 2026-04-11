@@ -1,11 +1,12 @@
 """Tests for retriever module."""
 
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-from app.core.retriever import RetrieverFactory, QAChain
-from app.core.config import AppConfig
+from app.core.retriever import QAChain, RetrieverFactory
 from langchain_core.documents import Document
+
+from app.core.config import AppConfig
 
 
 class TestRetrieverFactory(unittest.TestCase):
@@ -73,9 +74,7 @@ class TestRetrieverFactory(unittest.TestCase):
         mock_vectorstore = Mock()
         mock_vectorstore.as_retriever.return_value = Mock()
 
-        retriever = self.factory.get_retriever(
-            mock_vectorstore, retriever_type="similarity"
-        )
+        self.factory.get_retriever(mock_vectorstore, retriever_type="similarity")
 
         mock_vectorstore.as_retriever.assert_called_once()
 
@@ -84,7 +83,7 @@ class TestRetrieverFactory(unittest.TestCase):
         mock_vectorstore = Mock()
         mock_vectorstore.as_retriever.return_value = Mock()
 
-        retriever = self.factory.get_retriever(mock_vectorstore, retriever_type="mmr")
+        self.factory.get_retriever(mock_vectorstore, retriever_type="mmr")
 
         mock_vectorstore.as_retriever.assert_called_once()
 
@@ -93,7 +92,7 @@ class TestRetrieverFactory(unittest.TestCase):
         mock_vectorstore = Mock()
         mock_vectorstore.as_retriever.return_value = Mock()
 
-        retriever = self.factory.get_retriever(mock_vectorstore, retriever_type="svm")
+        self.factory.get_retriever(mock_vectorstore, retriever_type="svm")
 
         mock_vectorstore.as_retriever.assert_called_once()
 

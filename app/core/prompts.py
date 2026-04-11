@@ -1,9 +1,9 @@
 """Prompt loader for external configuration."""
 
-import os
-import yaml
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Optional
+
+import yaml
 
 from app.core.logger import get_logger
 
@@ -18,7 +18,7 @@ class PromptLoader:
     """
 
     _instance: Optional["PromptLoader"] = None
-    _prompts: Dict[str, Any] = {}
+    _prompts: dict[str, Any] = {}
     _loaded: bool = False
 
     def __new__(cls):
@@ -51,7 +51,7 @@ class PromptLoader:
 
         if prompts_file:
             try:
-                with open(prompts_file, "r", encoding="utf-8") as f:
+                with open(prompts_file, encoding="utf-8") as f:
                     self._prompts = yaml.safe_load(f) or {}
                 logger.info(f"Loaded prompts from {prompts_file}")
             except Exception as e:
@@ -75,7 +75,7 @@ class PromptLoader:
             "SIMILARITY_THRESHOLD": 0.5,
         }
 
-    def get(self, key: str, default: Optional[str] = None) -> str:
+    def get(self, key: str, default: str | None = None) -> str:
         """
         Get a prompt by key.
 
@@ -102,13 +102,13 @@ class PromptLoader:
 
     def get_error_message(self, error_type: str) -> str:
         """Get error message."""
-        return self.get(f"NO_CONTEXT_ERROR", "Bilgi bulunmuyor.")
+        return self.get("NO_CONTEXT_ERROR", "Bilgi bulunmuyor.")
 
     def get_greeting(self) -> str:
         """Get greeting message."""
         lang = self.get("DEFAULT_LANGUAGE", "tr")
         return (
-            self.get(f"GREETING", "Merhaba!")
+            self.get("GREETING", "Merhaba!")
             if lang == "tr"
             else self.get("GREETING_ENGLISH", "Hello!")
         )
@@ -121,7 +121,7 @@ class PromptLoader:
         """Get similarity threshold."""
         return float(self.get("SIMILARITY_THRESHOLD", 0.5))
 
-    def get_all(self) -> Dict[str, Any]:
+    def get_all(self) -> dict[str, Any]:
         """Get all prompts."""
         return self._prompts.copy()
 
@@ -132,7 +132,7 @@ class PromptLoader:
 
 
 # Global instance
-_prompt_loader: Optional[PromptLoader] = None
+_prompt_loader: PromptLoader | None = None
 
 
 def get_prompt_loader() -> PromptLoader:

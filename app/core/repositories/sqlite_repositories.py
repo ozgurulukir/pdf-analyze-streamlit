@@ -1,29 +1,20 @@
 """SQLite implementation of repositories."""
 
 import sqlite3
-from typing import List, Optional, Dict, Any
 from datetime import datetime
 
+from app.core.exceptions import DatabaseQueryError
+from app.core.logger import get_logger
 from app.core.models import (
-    Workspace,
     FileMetadata,
-    ChunkMetadata,
     Message,
-    QAPair,
-    UserPreferences,
-    Job,
+    Workspace,
 )
 from app.core.repositories.interfaces import (
-    WorkspaceRepository,
     FileRepository,
-    ChunkRepository,
     MessageRepository,
-    QARepository,
-    PreferencesRepository,
-    JobRepository,
+    WorkspaceRepository,
 )
-from app.core.exceptions import DatabaseError, DatabaseQueryError
-from app.core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -33,7 +24,7 @@ class SQLiteConnection:
 
     def __init__(self, db_path: str):
         self.db_path = db_path
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
 
     def __enter__(self) -> sqlite3.Connection:
         self._conn = sqlite3.connect(self.db_path)
@@ -85,7 +76,7 @@ class SQLiteWorkspaceRepository(WorkspaceRepository):
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to create workspace: {e}")
 
-    def get_by_id(self, workspace_id: str) -> Optional[Workspace]:
+    def get_by_id(self, workspace_id: str) -> Workspace | None:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -97,7 +88,7 @@ class SQLiteWorkspaceRepository(WorkspaceRepository):
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to get workspace: {e}")
 
-    def get_all(self) -> List[Workspace]:
+    def get_all(self) -> list[Workspace]:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -106,7 +97,7 @@ class SQLiteWorkspaceRepository(WorkspaceRepository):
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to get workspaces: {e}")
 
-    def get_active(self) -> Optional[Workspace]:
+    def get_active(self) -> Workspace | None:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -124,7 +115,7 @@ class SQLiteWorkspaceRepository(WorkspaceRepository):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    UPDATE workspaces 
+                    UPDATE workspaces
                     SET name = ?, description = ?, last_modified = ?, file_count = ?, is_active = ?
                     WHERE id = ?
                 """,
@@ -191,8 +182,8 @@ class SQLiteFileRepository(FileRepository):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO files (id, workspace_id, filename, original_name, file_type, size, 
-                                     status, chunk_count, content_hash, uploaded_at, processed_at, 
+                    INSERT INTO files (id, workspace_id, filename, original_name, file_type, size,
+                                     status, chunk_count, content_hash, uploaded_at, processed_at,
                                      error_message, tags)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -217,7 +208,7 @@ class SQLiteFileRepository(FileRepository):
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to create file: {e}")
 
-    def get_by_id(self, file_id: str) -> Optional[FileMetadata]:
+    def get_by_id(self, file_id: str) -> FileMetadata | None:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -229,7 +220,7 @@ class SQLiteFileRepository(FileRepository):
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to get file: {e}")
 
-    def get_by_workspace(self, workspace_id: str) -> List[FileMetadata]:
+    def get_by_workspace(self, workspace_id: str) -> list[FileMetadata]:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -241,7 +232,7 @@ class SQLiteFileRepository(FileRepository):
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to get files: {e}")
 
-    def get_by_status(self, workspace_id: str, status: str) -> List[FileMetadata]:
+    def get_by_status(self, workspace_id: str, status: str) -> list[FileMetadata]:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -259,7 +250,7 @@ class SQLiteFileRepository(FileRepository):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    UPDATE files 
+                    UPDATE files
                     SET filename = ?, file_type = ?, size = ?, status = ?, chunk_count = ?,
                         processed_at = ?, error_message = ?, tags = ?
                     WHERE id = ?
@@ -355,7 +346,7 @@ class SQLiteMessageRepository(MessageRepository):
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to create message: {e}")
 
-    def get_by_id(self, message_id: str) -> Optional[Message]:
+    def get_by_id(self, message_id: str) -> Message | None:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -369,14 +360,14 @@ class SQLiteMessageRepository(MessageRepository):
 
     def get_by_workspace(
         self, workspace_id: str, limit: int = 100, offset: int = 0
-    ) -> List[Message]:
+    ) -> list[Message]:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    SELECT * FROM messages 
-                    WHERE workspace_id = ? 
+                    SELECT * FROM messages
+                    WHERE workspace_id = ?
                     ORDER BY timestamp DESC
                     LIMIT ? OFFSET ?
                 """,
@@ -386,7 +377,7 @@ class SQLiteMessageRepository(MessageRepository):
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to get messages: {e}")
 
-    def get_recent(self, workspace_id: str, limit: int = 50) -> List[Message]:
+    def get_recent(self, workspace_id: str, limit: int = 50) -> list[Message]:
         messages = self.get_by_workspace(workspace_id, limit)
         return list(reversed(messages))
 
@@ -396,7 +387,7 @@ class SQLiteMessageRepository(MessageRepository):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    UPDATE messages 
+                    UPDATE messages
                     SET content = ?, sources = ?, is_summarized = ?
                     WHERE id = ?
                 """,

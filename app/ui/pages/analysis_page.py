@@ -1,7 +1,8 @@
 """Analysis page component."""
 
 import streamlit as st
-from app.core import DatabaseManager, UserPreferences
+
+from app.core import DatabaseManager
 from app.core.constants import SessionKeys
 
 
@@ -16,9 +17,9 @@ def render_qa_card(qa, on_like, on_dislike):
 
         col1, col2, _ = st.columns([1, 1, 4])
         with col1:
-            st.button(f"👍", key=f"like_{id(qa)}")
+            st.button("👍", key=f"like_{id(qa)}")
         with col2:
-            st.button(f"👎", key=f"dislike_{id(qa)}")
+            st.button("👎", key=f"dislike_{id(qa)}")
     st.divider()
 
 
@@ -96,11 +97,11 @@ def render_analysis_page():
             st.markdown("### 📈 Workspace İstatistikleri")
             # Adaptive document stats from upload.py
             if files:
-                total_chars = sum(
+                sum(
                     len(f.filename) * 100 for f in files
                 )  # Simulated char count for demo or use real if available
                 total_docs = len(files)
-                sources = list(set(f.original_name for f in files))
+                sources = list({f.original_name for f in files})
 
                 c1, c2, c3 = st.columns(3)
                 c1.metric("📄 Toplam Belge", total_docs)

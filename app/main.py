@@ -8,14 +8,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 
-from app.core import DatabaseManager, UserPreferences, get_job_queue
-from app.core.constants import SessionKeys
+from app.core import DatabaseManager
 from app.core.config import AppConfig
+from app.core.constants import SessionKeys
 from app.core.logger import logger
 from app.core.router import resolve_page
-from app.ui.layout import apply_layout_styles
-from app.ui.header import render_header, render_navigation
 from app.ui.callbacks import load_workspaces
+from app.ui.header import render_header, render_navigation
+from app.ui.layout import apply_layout_styles
 from app.ui.sidebar import render_sidebar_content
 
 # Configure Streamlit page

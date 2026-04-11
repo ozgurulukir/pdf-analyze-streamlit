@@ -1,12 +1,13 @@
 """Settings page component."""
 
 import streamlit as st
-from app.ui.sidebar import (
-    render_llm_settings,
-    render_embedding_settings,
-    render_data_settings,
-)
+
 from app.ui.callbacks import reset_system_callback
+from app.ui.sidebar import (
+    render_data_settings,
+    render_embedding_settings,
+    render_llm_settings,
+)
 
 
 def render_settings_page():

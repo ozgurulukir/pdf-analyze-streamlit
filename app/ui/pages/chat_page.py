@@ -1,10 +1,11 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
+
 from app.core import QUICK_PROMPTS, DatabaseManager, Message
-from app.core.constants import SessionKeys
 from app.core.chroma import ChromaManager, EmbeddingManager
-from app.core.services.chat_service import ChatService
 from app.core.config import AppConfig
+from app.core.constants import SessionKeys
+from app.core.services.chat_service import ChatService
 
 
 def render_empty_chat():

@@ -1,17 +1,16 @@
 """Background job queue and worker management."""
 
-import threading
 import queue
-import time
-from concurrent.futures import ThreadPoolExecutor, Future
-from typing import List, Optional, Callable, Dict, Any
-import streamlit as st
-
-from app.core.models import Job
-from app.core.database import DatabaseManager
-from app.core.constants import ProcessingStatus, UIConstants
-from app.core.config import AppConfig
+import threading
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from typing import Any
+
+from app.core.config import AppConfig
+from app.core.constants import ProcessingStatus, UIConstants
+from app.core.database import DatabaseManager
+from app.core.models import Job
 
 
 class JobQueue:
@@ -20,7 +19,7 @@ class JobQueue:
     def __init__(self, max_workers: int = 2):
         self._queue: queue.Queue = queue.Queue()
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
-        self._jobs: Dict[str, Job] = {}
+        self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
         self._db = DatabaseManager()
 
@@ -28,7 +27,7 @@ class JobQueue:
         self,
         job_type: str,
         workspace_id: str,
-        file_ids: List[str],
+        file_ids: list[str],
         task_func: Callable,
         task_args: tuple = (),
         task_kwargs: dict = None,
@@ -56,9 +55,7 @@ class JobQueue:
             self._jobs[job.id] = job
 
         # Create future
-        future = self._executor.submit(
-            self._run_job, job, task_func, task_args, task_kwargs
-        )
+        self._executor.submit(self._run_job, job, task_func, task_args, task_kwargs)
 
         return job
 
@@ -101,12 +98,12 @@ class JobQueue:
             self._db.update_job(job)
             raise
 
-    def get_job(self, job_id: str) -> Optional[Job]:
+    def get_job(self, job_id: str) -> Job | None:
         """Get a job by ID."""
         with self._lock:
             return self._jobs.get(job_id)
 
-    def get_active_jobs(self, workspace_id: Optional[str] = None) -> List[Job]:
+    def get_active_jobs(self, workspace_id: str | None = None) -> list[Job]:
         """Get all active (pending/running) jobs."""
         with self._lock:
             jobs = list(self._jobs.values())
@@ -116,7 +113,7 @@ class JobQueue:
 
         return [j for j in jobs if j.status in ("pending", "running")]
 
-    def get_job_status(self, job_id: str) -> Optional[Job]:
+    def get_job_status(self, job_id: str) -> Job | None:
         """Get job status from database."""
         jobs = self._db.get_jobs()
         for job in jobs:
@@ -143,7 +140,7 @@ class JobQueue:
 
 
 # Global job queue instance
-_job_queue: Optional[JobQueue] = None
+_job_queue: JobQueue | None = None
 
 
 def get_job_queue() -> JobQueue:
@@ -164,15 +161,14 @@ class EmbeddingWorker:
 
     def process_files(
         self,
-        files: List[Any],
+        files: list[Any],
         workspace_id: str,
         workspace_name: str,
         db: DatabaseManager,
-        embedding_settings: Optional[Dict[str, Any]] = None,
-        progress_callback: Optional[Callable] = None,
-    ) -> Dict[str, Any]:
+        embedding_settings: dict[str, Any] | None = None,
+        progress_callback: Callable | None = None,
+    ) -> dict[str, Any]:
         """Process files: chunk, embed, and upsert to Chroma."""
-        from app.core.models import FileMetadata
 
         results = {"success": [], "failed": []}
 
@@ -273,14 +269,14 @@ class EmbeddingWorker:
 
 
 def create_embedding_job(
-    files: List[Any],
+    files: list[Any],
     workspace_id: str,
     workspace_name: str,
     db: DatabaseManager,
-    embedding_settings: Optional[Dict[str, Any]] = None,
+    embedding_settings: dict[str, Any] | None = None,
 ) -> Job:
     """Create a background job for embedding processing."""
-    from app.core.chroma import EmbeddingManager, ChunkManager, ChromaManager
+    from app.core.chroma import ChromaManager, ChunkManager, EmbeddingManager
 
     # Initialize managers with settings if provided
     if embedding_settings:
