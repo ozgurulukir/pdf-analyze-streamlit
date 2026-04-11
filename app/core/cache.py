@@ -1,29 +1,33 @@
 """Caching layer with Streamlit integration for improved performance."""
-import time
+
 import hashlib
 import json
-import streamlit as st
-from typing import Any, Optional, Callable, TypeVar, Dict, List
+from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
-from collections import OrderedDict
 from threading import Lock
+from typing import Any, TypeVar
+
+import streamlit as st
 
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 # ===================
 # Cache Entry & LRU Cache
 # ===================
 
+
 @dataclass
 class CacheEntry:
     """Represents a cache entry with expiration."""
+
     key: str
     value: Any
     created_at: datetime
@@ -58,14 +62,9 @@ class LRUCache:
         self._max_size = max_size
         self._default_ttl = default_ttl
         self._lock = Lock()
-        self._stats = {
-            "hits": 0,
-            "misses": 0,
-            "evictions": 0,
-            "expirations": 0
-        }
+        self._stats = {"hits": 0, "misses": 0, "evictions": 0, "expirations": 0}
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Get a value from cache.
 
@@ -94,7 +93,7 @@ class LRUCache:
 
             return entry.value
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+    def set(self, key: str, value: Any, ttl: int | None = None) -> None:
         """Set a value in cache with optional TTL."""
         with self._lock:
             if key in self._cache:
@@ -112,7 +111,7 @@ class LRUCache:
                 key=key,
                 value=value,
                 created_at=now,
-                expires_at=now + timedelta(seconds=ttl)
+                expires_at=now + timedelta(seconds=ttl),
             )
 
             self._cache[key] = entry
@@ -130,7 +129,7 @@ class LRUCache:
         with self._lock:
             self._cache.clear()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         with self._lock:
             total = self._stats["hits"] + self._stats["misses"]
@@ -143,7 +142,7 @@ class LRUCache:
                 "misses": self._stats["misses"],
                 "hit_rate": round(hit_rate, 3),
                 "evictions": self._stats["evictions"],
-                "expirations": self._stats["expirations"]
+                "expirations": self._stats["expirations"],
             }
 
 
@@ -151,10 +150,10 @@ class LRUCache:
 # Global Cache Instances
 # ===================
 
-_message_cache: Optional[LRUCache] = None
-_embedding_cache: Optional[LRUCache] = None
-_llm_response_cache: Optional[LRUCache] = None
-_query_cache: Optional[LRUCache] = None
+_message_cache: LRUCache | None = None
+_embedding_cache: LRUCache | None = None
+_llm_response_cache: LRUCache | None = None
+_query_cache: LRUCache | None = None
 
 
 def get_message_cache() -> LRUCache:
@@ -193,10 +192,11 @@ def get_query_cache() -> LRUCache:
 # Cache Decorators
 # ===================
 
+
 def cached(
     cache: LRUCache,
-    key_func: Optional[Callable[..., str]] = None,
-    ttl: Optional[int] = None
+    key_func: Callable[..., str] | None = None,
+    ttl: int | None = None,
 ):
     """
     Decorator to cache function results in LRU cache.
@@ -206,13 +206,16 @@ def cached(
         key_func: Function to generate cache key from args
         ttl: Time-to-live for cached results
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args, **kwargs):
             if key_func:
                 cache_key = key_func(*args, **kwargs)
             else:
-                key_data = json.dumps({"args": str(args), "kwargs": str(kwargs)}, sort_keys=True)
+                key_data = json.dumps(
+                    {"args": str(args), "kwargs": str(kwargs)}, sort_keys=True
+                )
                 cache_key = hashlib.md5(key_data.encode()).hexdigest()
 
             cached_value = cache.get(cache_key)
@@ -227,12 +230,14 @@ def cached(
             return result
 
         return wrapper
+
     return decorator
 
 
 # ===================
 # Streamlit Cache Integration
 # ===================
+
 
 @st.cache_resource
 def get_cached_database_manager():
@@ -241,12 +246,13 @@ def get_cached_database_manager():
     Use this for resource-heavy objects that should be created once.
     """
     from app.core.database import DatabaseManager
+
     logger.debug("Creating cached DatabaseManager instance")
     return DatabaseManager()
 
 
 @st.cache_resource
-def get_cached_chroma_manager(_config: Dict[str, Any] = None):
+def get_cached_chroma_manager(_config: dict[str, Any] = None):
     """
     Get cached ChromaManager instance (singleton via Streamlit).
 
@@ -254,6 +260,7 @@ def get_cached_chroma_manager(_config: Dict[str, Any] = None):
         _config: Configuration dict (underscore prefix prevents hashing issues)
     """
     from app.core.chroma import ChromaManager
+
     logger.debug("Creating cached ChromaManager instance")
     persist_dir = _config.get("chroma_path") if _config else None
     return ChromaManager(persist_directory=persist_dir)
@@ -264,18 +271,19 @@ def get_cached_embedding_manager(
     use_huggingface: bool = False,
     ollama_model: str = "nomic-embed-text",
     ollama_url: str = "http://localhost:11434",
-    hf_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    hf_model: str = "sentence-transformers/all-MiniLM-L6-v2",
 ):
     """
     Get cached EmbeddingManager instance (singleton via Streamlit).
     """
     from app.core.chroma import EmbeddingManager
+
     logger.debug("Creating cached EmbeddingManager instance")
     return EmbeddingManager(
         use_huggingface=use_huggingface,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
-        hf_model=hf_model
+        hf_model=hf_model,
     )
 
 
@@ -283,20 +291,22 @@ def get_cached_embedding_manager(
 # Data Caching with Streamlit
 # ===================
 
+
 @st.cache_data(ttl=300, max_entries=100)
-def cached_get_workspaces() -> List[Dict[str, Any]]:
+def cached_get_workspaces() -> list[dict[str, Any]]:
     """
     Get all workspaces (cached for 5 minutes).
     Returns list of workspace dicts for better serialization.
     """
     from app.core.database import DatabaseManager
+
     db = DatabaseManager()
     workspaces = db.get_workspaces()
-    return [w.to_dict() if hasattr(w, 'to_dict') else w for w in workspaces]
+    return [w.to_dict() if hasattr(w, "to_dict") else w for w in workspaces]
 
 
 @st.cache_data(ttl=60, max_entries=50)
-def cached_get_workspace_files(workspace_id: str) -> List[Dict[str, Any]]:
+def cached_get_workspace_files(workspace_id: str) -> list[dict[str, Any]]:
     """
     Get files for a workspace (cached for 1 minute).
 
@@ -304,13 +314,14 @@ def cached_get_workspace_files(workspace_id: str) -> List[Dict[str, Any]]:
         workspace_id: Workspace ID to get files for
     """
     from app.core.database import DatabaseManager
+
     db = DatabaseManager()
     files = db.get_files(workspace_id)
-    return [f.to_dict() if hasattr(f, 'to_dict') else f for f in files]
+    return [f.to_dict() if hasattr(f, "to_dict") else f for f in files]
 
 
 @st.cache_data(ttl=120, max_entries=30)
-def cached_get_messages(workspace_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+def cached_get_messages(workspace_id: str, limit: int = 50) -> list[dict[str, Any]]:
     """
     Get chat messages for a workspace (cached for 2 minutes).
 
@@ -319,13 +330,16 @@ def cached_get_messages(workspace_id: str, limit: int = 50) -> List[Dict[str, An
         limit: Maximum number of messages
     """
     from app.core.database import DatabaseManager
+
     db = DatabaseManager()
     messages = db.get_messages(workspace_id, limit=limit)
-    return [m.to_dict() if hasattr(m, 'to_dict') else m for m in messages]
+    return [m.to_dict() if hasattr(m, "to_dict") else m for m in messages]
 
 
 @st.cache_data(ttl=3600, max_entries=500)
-def cached_get_embedding(text_hash: str, text: str, _embedding_manager: Any) -> List[float]:
+def cached_get_embedding(
+    text_hash: str, text: str, _embedding_manager: Any
+) -> list[float]:
     """
     Get embedding for text (cached for 1 hour).
 
@@ -344,8 +358,8 @@ def cached_chroma_query(
     query_hash: str,
     n_results: int,
     _chroma_manager: Any,
-    _query_embedding: List[float]
-) -> Dict[str, Any]:
+    _query_embedding: list[float],
+) -> dict[str, Any]:
     """
     Cached ChromaDB similarity search (30 minutes TTL).
 
@@ -361,18 +375,15 @@ def cached_chroma_query(
         workspace_id=workspace_id,
         workspace_name=workspace_name,
         query_embedding=_query_embedding,
-        n_results=n_results
+        n_results=n_results,
     )
-    return {
-        "documents": docs,
-        "distances": distances,
-        "metadatas": metadatas
-    }
+    return {"documents": docs, "distances": distances, "metadatas": metadatas}
 
 
 # ===================
 # Cache Invalidation Helpers
 # ===================
+
 
 def invalidate_workspace_cache(workspace_id: str) -> None:
     """
@@ -427,6 +438,7 @@ def invalidate_llm_cache() -> None:
 # Utility Functions
 # ===================
 
+
 def cache_key(*args, **kwargs) -> str:
     """Generate a cache key from function arguments."""
     key_data = json.dumps({"args": str(args), "kwargs": str(kwargs)}, sort_keys=True)
@@ -438,7 +450,7 @@ def text_hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
-def clear_all_caches() -> Dict[str, Dict[str, Any]]:
+def clear_all_caches() -> dict[str, dict[str, Any]]:
     """
     Clear all application caches.
 
@@ -471,7 +483,7 @@ def clear_all_caches() -> Dict[str, Dict[str, Any]]:
     return stats
 
 
-def get_cache_stats() -> Dict[str, Dict[str, Any]]:
+def get_cache_stats() -> dict[str, dict[str, Any]]:
     """Get statistics for all caches."""
     return {
         "message_cache": get_message_cache().get_stats(),
@@ -485,6 +497,7 @@ def get_cache_stats() -> Dict[str, Dict[str, Any]]:
 # Cache Statistics UI Helper
 # ===================
 
+
 def render_cache_stats() -> None:
     """Render cache statistics in Streamlit (for admin/debug)."""
     import streamlit as st
@@ -496,19 +509,31 @@ def render_cache_stats() -> None:
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Mesaj Cache", f"{stats['message_cache']['size']}/{stats['message_cache']['max_size']}")
+        st.metric(
+            "Mesaj Cache",
+            f"{stats['message_cache']['size']}/{stats['message_cache']['max_size']}",
+        )
         st.caption(f"Hit Rate: {stats['message_cache']['hit_rate']:.1%}")
 
     with col2:
-        st.metric("Embedding Cache", f"{stats['embedding_cache']['size']}/{stats['embedding_cache']['max_size']}")
+        st.metric(
+            "Embedding Cache",
+            f"{stats['embedding_cache']['size']}/{stats['embedding_cache']['max_size']}",
+        )
         st.caption(f"Hit Rate: {stats['embedding_cache']['hit_rate']:.1%}")
 
     with col3:
-        st.metric("LLM Cache", f"{stats['llm_response_cache']['size']}/{stats['llm_response_cache']['max_size']}")
+        st.metric(
+            "LLM Cache",
+            f"{stats['llm_response_cache']['size']}/{stats['llm_response_cache']['max_size']}",
+        )
         st.caption(f"Hit Rate: {stats['llm_response_cache']['hit_rate']:.1%}")
 
     with col4:
-        st.metric("Query Cache", f"{stats['query_cache']['size']}/{stats['query_cache']['max_size']}")
+        st.metric(
+            "Query Cache",
+            f"{stats['query_cache']['size']}/{stats['query_cache']['max_size']}",
+        )
         st.caption(f"Hit Rate: {stats['query_cache']['hit_rate']:.1%}")
 
     if st.button("🗑️ Tüm Önbellekleri Temizle"):

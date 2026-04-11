@@ -1,4 +1,5 @@
 """Unit tests for caching layer."""
+
 import time
 from datetime import datetime, timedelta
 
@@ -23,7 +24,7 @@ class TestCacheEntry:
             key="test-key",
             value="test-value",
             created_at=datetime.now(),
-            expires_at=datetime.now() + timedelta(hours=1)
+            expires_at=datetime.now() + timedelta(hours=1),
         )
         assert entry.key == "test-key"
         assert entry.value == "test-value"
@@ -35,7 +36,7 @@ class TestCacheEntry:
             key="test-key",
             value="test-value",
             created_at=datetime.now() - timedelta(hours=2),
-            expires_at=datetime.now() - timedelta(hours=1)
+            expires_at=datetime.now() - timedelta(hours=1),
         )
         assert entry.is_expired() is True
 

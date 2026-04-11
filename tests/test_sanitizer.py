@@ -25,7 +25,9 @@ class TestSanitizer:
 
     def test_sanitize_string_strips_html(self):
         """Test HTML stripping."""
-        result = Sanitizer.sanitize_string("<script>alert('xss')</script>Hello", strip_html=True)
+        result = Sanitizer.sanitize_string(
+            "<script>alert('xss')</script>Hello", strip_html=True
+        )
 
         assert result.is_valid is True
         assert "<script>" not in result.sanitized_value
@@ -72,7 +74,7 @@ class TestSanitizer:
 
     def test_sanitize_filename_removes_dangerous_chars(self):
         """Test dangerous character removal."""
-        result = Sanitizer.sanitize_filename("file<>:\"|?*.pdf")
+        result = Sanitizer.sanitize_filename('file<>:"|?*.pdf')
 
         assert result.is_valid is True
         # Should only keep safe characters
@@ -124,7 +126,9 @@ class TestSanitizer:
         result = Sanitizer.sanitize_xss("<script>alert('xss')</script>")
 
         assert result.is_valid is False
-        assert "XSS" in result.error_message or "dangerous" in result.error_message.lower()
+        assert (
+            "XSS" in result.error_message or "dangerous" in result.error_message.lower()
+        )
 
     def test_sanitize_xss_javascript_protocol(self):
         """Test javascript: protocol detection."""
@@ -174,15 +178,11 @@ class TestSanitizer:
 
     def test_sanitize_dict_basic(self):
         """Test dictionary sanitization."""
-        data = {
-            "name": "Test",
-            "age": "25",
-            "active": "true"
-        }
+        data = {"name": "Test", "age": "25", "active": "true"}
         schema = {
             "name": {"type": "string", "required": True},
             "age": {"type": "int"},
-            "active": {"type": "bool"}
+            "active": {"type": "bool"},
         }
 
         result = Sanitizer.sanitize_dict(data, schema)
@@ -193,12 +193,8 @@ class TestSanitizer:
 
     def test_sanitize_dict_with_max_length(self):
         """Test dictionary with max length constraint."""
-        data = {
-            "description": "x" * 1000
-        }
-        schema = {
-            "description": {"type": "string", "max_length": 100}
-        }
+        data = {"description": "x" * 1000}
+        schema = {"description": {"type": "string", "max_length": 100}}
 
         result = Sanitizer.sanitize_dict(data, schema)
 

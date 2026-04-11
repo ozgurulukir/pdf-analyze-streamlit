@@ -1,7 +1,7 @@
 """Library page component with cache integration."""
+
 import streamlit as st
 
-from app.core import DatabaseManager
 from app.core.cache import (
     get_cache_stats,
     get_cached_database_manager,
@@ -11,10 +11,34 @@ from app.core.constants import SessionKeys
 from app.ui.callbacks import delete_file_callback, get_cached_files
 
 STATUS_CONFIG = {
-    "processed": {"icon": "✅", "color": "#10b981", "bg": "rgba(16,185,129,0.1)", "border": "rgba(16,185,129,0.25)", "label": "İşlendi"},
-    "processing": {"icon": "⚙️", "color": "#6366f1", "bg": "rgba(99,102,241,0.1)", "border": "rgba(99,102,241,0.25)", "label": "İşleniyor"},
-    "pending": {"icon": "⏳", "color": "#f59e0b", "bg": "rgba(245,158,11,0.1)", "border": "rgba(245,158,11,0.25)", "label": "Bekliyor"},
-    "error": {"icon": "❌", "color": "#ef4444", "bg": "rgba(239,68,68,0.1)", "border": "rgba(239,68,68,0.25)", "label": "Hata"},
+    "processed": {
+        "icon": "✅",
+        "color": "#10b981",
+        "bg": "rgba(16,185,129,0.1)",
+        "border": "rgba(16,185,129,0.25)",
+        "label": "İşlendi",
+    },
+    "processing": {
+        "icon": "⚙️",
+        "color": "#6366f1",
+        "bg": "rgba(99,102,241,0.1)",
+        "border": "rgba(99,102,241,0.25)",
+        "label": "İşleniyor",
+    },
+    "pending": {
+        "icon": "⏳",
+        "color": "#f59e0b",
+        "bg": "rgba(245,158,11,0.1)",
+        "border": "rgba(245,158,11,0.25)",
+        "label": "Bekliyor",
+    },
+    "error": {
+        "icon": "❌",
+        "color": "#ef4444",
+        "bg": "rgba(239,68,68,0.1)",
+        "border": "rgba(239,68,68,0.25)",
+        "label": "Hata",
+    },
 }
 FILE_ICONS = {"pdf": "📕", "txt": "📄", "docx": "📘", "md": "📝", "html": "🌐"}
 
@@ -26,7 +50,8 @@ def render_file_card_visual(file, on_delete):
     file_size_kb = file.size / 1024 if file.size else 0
     status = STATUS_CONFIG.get(file.status, STATUS_CONFIG["pending"])
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="
         background: rgba(30, 41, 59, 0.7);
         border: 1px solid rgba(99, 102, 241, 0.15);
@@ -64,7 +89,9 @@ def render_file_card_visual(file, on_delete):
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     if st.button("🗑️ Sil", key=f"lib_del_{file.id}", use_container_width=True):
         on_delete(file.id)
@@ -74,7 +101,6 @@ def render_library_page(settings: dict):
     """Render the document library page with tabbed management view and caching."""
     from app.ui.callbacks import (
         create_workspace_callback,
-        delete_file_callback,
         delete_workspace_callback,
         rename_workspace_callback,
         select_workspace_callback,
@@ -87,7 +113,8 @@ def render_library_page(settings: dict):
     )
 
     # Page Header
-    st.markdown("""
+    st.markdown(
+        """
     <div style="
         display: flex; align-items: center; gap: 14px;
         padding: 1.25rem 1.5rem;
@@ -108,7 +135,9 @@ def render_library_page(settings: dict):
             <div style="font-size: 0.78rem; color: #64748b; margin-top: 1px;">Sistemi yapılandırın ve belgelerinizi yönetin</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Use cached database manager
     db = get_cached_database_manager()
@@ -116,12 +145,9 @@ def render_library_page(settings: dict):
     active_ws = db.get_workspace(active_ws_id) if active_ws_id else None
 
     # Define Tabs
-    tab_stats, tab_manage, tab_upload, tab_files = st.tabs([
-        "📊 Özet",
-        "📁 Çalışma Alanları",
-        "📤 Yükleme",
-        "📄 Tüm Belgeler"
-    ])
+    tab_stats, tab_manage, tab_upload, tab_files = st.tabs(
+        ["📊 Özet", "📁 Çalışma Alanları", "📤 Yükleme", "📄 Tüm Belgeler"]
+    )
 
     with tab_stats:
         if active_ws:
@@ -138,14 +164,16 @@ def render_library_page(settings: dict):
             on_create=create_workspace_callback,
             on_select=select_workspace_callback,
             on_delete=delete_workspace_callback,
-            on_rename=rename_workspace_callback
+            on_rename=rename_workspace_callback,
         )
 
     with tab_upload:
         if active_ws:
             st.markdown(f"#### 📤 '{active_ws.name}' Alanına Yükle")
             render_upload_zone(
-                on_upload=lambda files: upload_files_callback(files, active_ws, settings)
+                on_upload=lambda files: upload_files_callback(
+                    files, active_ws, settings
+                )
             )
         else:
             st.warning("Dosya yüklemek için önce bir çalışma alanı seçin.")
@@ -154,6 +182,7 @@ def render_library_page(settings: dict):
         if not active_ws:
             st.info("Belgelerini listelemek için bir çalışma alanı seçin.")
         else:
+
             @st.fragment
             def render_filtered_file_list():
                 # Use cached files
@@ -170,8 +199,15 @@ def render_library_page(settings: dict):
                         label_visibility="collapsed",
                     )
 
-                    filtered = files if status_filter == "Tümü" else [f for f in files if f.status == status_filter]
-                    st.markdown(f"<div style='color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;'>{len(filtered)} belge gösteriliyor</div>", unsafe_allow_html=True)
+                    filtered = (
+                        files
+                        if status_filter == "Tümü"
+                        else [f for f in files if f.status == status_filter]
+                    )
+                    st.markdown(
+                        f"<div style='color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;'>{len(filtered)} belge gösteriliyor</div>",
+                        unsafe_allow_html=True,
+                    )
 
                     # Refresh button with cache invalidation
                     col_refresh, col_stats = st.columns([3, 1])
@@ -181,7 +217,9 @@ def render_library_page(settings: dict):
                             st.rerun()
                     with col_stats:
                         stats = get_cache_stats()
-                        st.caption(f"Cache: {stats['query_cache']['size']}/{stats['query_cache']['max_size']}")
+                        st.caption(
+                            f"Cache: {stats['query_cache']['size']}/{stats['query_cache']['max_size']}"
+                        )
 
                     st.divider()
 

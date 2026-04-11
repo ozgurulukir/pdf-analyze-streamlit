@@ -1,40 +1,41 @@
 """Chroma vector store manager with Ollama/HuggingFace embeddings."""
 import re
-from typing import List, Optional, Dict, Any, Tuple, Union
-import chromadb
-from chromadb.config import Settings
-from chromadb.api.models.Collection import Collection
+from typing import Any
 
+import chromadb
+from chromadb.api.models.Collection import Collection
+from chromadb.config import Settings
+
+from app.core.config import AppConfig
 from app.core.exceptions import ChromaError
 from app.core.logger import logger
-from app.core.config import AppConfig
 
 
 class ChromaManager:
     """
     Manages ChromaDB collections for semantic search.
-    
-    Responsible for collection lifecycle (create, get, delete), 
+
+    Responsible for collection lifecycle (create, get, delete),
     chunk ingestion, and similarity querying.
     """
 
-    def __init__(self, persist_directory: Optional[str] = None):
+    def __init__(self, persist_directory: str | None = None):
         """
         Initialize the Chroma manager.
-        
+
         Args:
             persist_directory: Local path to store the vector database
         """
         if persist_directory is None:
             persist_directory = AppConfig().CHROMA_PERSIST_DIR
         self.persist_directory = persist_directory
-        self._client: Optional[chromadb.PersistentClient] = None
+        self._client: chromadb.PersistentClient | None = None
 
     @property
     def client(self) -> chromadb.PersistentClient:
         """
         Get or initialize the persistent Chroma client.
-        
+
         Returns:
             chromadb.PersistentClient: The initialized client
         """
@@ -56,12 +57,12 @@ class ChromaManager:
     def sanitize_name(name: str) -> str:
         """
         Sanitize workspace name for Chroma collection naming requirements.
-        
+
         Rules: 3-63 chars, alphanumeric, underscore or hyphen.
-        
+
         Args:
             name: The raw workspace name
-            
+
         Returns:
             str: Sanitized collection name segment
         """
@@ -72,11 +73,11 @@ class ChromaManager:
     def get_collection_name(self, workspace_id: str, workspace_name: str) -> str:
         """
         Generate a unique and compliant collection name for a workspace.
-        
+
         Args:
             workspace_id: Unique ID of the workspace
             workspace_name: Human-readable name of the workspace
-            
+
         Returns:
             str: Prefixed and sanitized collection name
         """
@@ -86,19 +87,19 @@ class ChromaManager:
     def get_or_create_collection(self, workspace_id: str, workspace_name: str) -> Collection:
         """
         Retrieve existing or create new collection for a workspace.
-        
+
         Args:
             workspace_id: ID of the workspace
             workspace_name: Name of the workspace
-            
+
         Returns:
             Collection: The Chroma collection object
-            
+
         Raises:
             ChromaError: If creation or retrieval fails
         """
-        collection_name = self.get_collection_name(workspace_id, workspace_name)
-        
+        collection_name = collection_name = collection_name = self.get_collection_name(workspace_id, workspace_name)
+
         try:
             return self.client.get_or_create_collection(
                 name=collection_name,
@@ -108,18 +109,18 @@ class ChromaManager:
             logger.error(f"Failed to get/create collection {collection_name}: {e}")
             raise ChromaError(f"Collection operation failed: {e}")
 
-    def get_collection(self, workspace_id: str, workspace_name: str) -> Optional[Collection]:
+    def get_collection(self, workspace_id: str, workspace_name: str) -> Collection | None:
         """
         Retrieve an existing collection without creating it.
-        
+
         Args:
             workspace_id: ID of the workspace
             workspace_name: Name of the workspace
-            
+
         Returns:
             Optional[Collection]: The collection if it exists, else None
         """
-        collection_name = self.get_collection_name(workspace_id, workspace_name)
+        collection_name = collection_name = collection_name = self.get_collection_name(workspace_id, workspace_name)
         try:
             return self.client.get_collection(name=collection_name)
         except Exception:
@@ -128,15 +129,15 @@ class ChromaManager:
     def delete_collection(self, workspace_id: str, workspace_name: str) -> None:
         """
         Delete a workspace's vector collection.
-        
+
         Args:
             workspace_id: ID of the workspace
             workspace_name: Name of the workspace
-            
+
         Raises:
             ChromaError: If deletion fails for reasons other than non-existence
         """
-        collection_name = self.get_collection_name(workspace_id, workspace_name)
+        collection_name = collection_name = collection_name = self.get_collection_name(workspace_id, workspace_name)
         try:
             self.client.delete_collection(name=collection_name)
             logger.info(f"Deleted vector collection: {collection_name}")
@@ -150,13 +151,13 @@ class ChromaManager:
         workspace_id: str,
         workspace_name: str,
         file_id: str,
-        chunks: List[str],
-        embeddings: List[List[float]],
-        source: Optional[str] = None
-    ) -> List[str]:
+        chunks: list[str],
+        embeddings: list[list[float]],
+        source: str | None = None
+    ) -> list[str]:
         """
         Add text chunks and their embeddings to the workspace collection.
-        
+
         Args:
             workspace_id: ID of the workspace
             workspace_name: Name of the workspace
@@ -164,18 +165,18 @@ class ChromaManager:
             chunks: List of text content snippets
             embeddings: Corresponding vector embeddings
             source: Human-readable source description
-            
+
         Returns:
             List[str]: The generated IDs for the indexed chunks
-            
+
         Raises:
             ChromaError: If ingestion fails
         """
         collection = self.get_or_create_collection(workspace_id, workspace_name)
-        
+
         # Generate deterministic IDs
         ids = [f"{workspace_id}_{file_id}_{i}" for i in range(len(chunks))]
-        
+
         metadatas = [
             {
                 "workspace_id": workspace_id,
@@ -186,7 +187,7 @@ class ChromaManager:
             }
             for i, chunk in enumerate(chunks)
         ]
-        
+
         try:
             collection.add(
                 ids=ids,
@@ -204,41 +205,41 @@ class ChromaManager:
         self,
         workspace_id: str,
         workspace_name: str,
-        query_embedding: List[float],
+        query_embedding: list[float],
         n_results: int = 4,
-        where: Optional[Dict[str, Any]] = None
-    ) -> Tuple[List[str], List[float], List[Dict[str, Any]]]:
+        where: dict[str, Any] | None = None
+    ) -> tuple[list[str], list[float], list[dict[str, Any]]]:
         """
         Perform a similarity search in the workspace collection.
-        
+
         Args:
             workspace_id: ID of the workspace
             workspace_name: Name of the workspace
             query_embedding: Vector embedding of the query
             n_results: Number of nearest neighbors to return
             where: Metadata filter dictionary
-            
+
         Returns:
             Tuple containing (documents, distances, metadatas)
         """
         collection_name = self.get_collection_name(workspace_id, workspace_name)
         logger.info(f"[Chroma] Looking for collection: {collection_name}")
-        
+
         # List all available collections
         try:
             all_collections = self.client.list_collections()
             logger.info(f"[Chroma] Available collections: {[c.name for c in all_collections]}")
         except Exception as e:
             logger.error(f"[Chroma] Failed to list collections: {e}")
-        
+
         collection = self.get_collection(workspace_id, workspace_name)
-        
+
         if collection is None:
             logger.warning(f"[Chroma] Collection not found: {collection_name}")
             return [], [], []
-        
-        logger.info(f"[Chroma] Collection found: {collection.name}, count: {collection.count()}")
-        
+
+        logger.info(f"[Chroma] Collection found: {collection_name}, count: {collection.count()}")
+
         try:
             results = collection.query(
                 query_embeddings=[query_embedding],
@@ -246,7 +247,7 @@ class ChromaManager:
                 where=where,
                 include=["documents", "distances", "metadatas"]
             )
-            
+
             return (
                 results.get("documents", [[]])[0],
                 results.get("distances", [[]])[0],
@@ -259,17 +260,17 @@ class ChromaManager:
     def delete_file_chunks(self, workspace_id: str, workspace_name: str, file_id: str) -> None:
         """
         Remove all vectors associated with a specific file.
-        
+
         Args:
             workspace_id: ID of the workspace
             workspace_name: Name of the workspace
             file_id: ID of the file whose chunks should be removed
         """
         collection = self.get_collection(workspace_id, workspace_name)
-        
+
         if collection is None:
             return
-        
+
         try:
             results = collection.get(where={"file_id": file_id})
             if results and results.get("ids"):
@@ -281,19 +282,19 @@ class ChromaManager:
     def get_chunk_count(self, workspace_id: str, workspace_name: str) -> int:
         """
         Get the current size of the workspace collection.
-        
+
         Args:
             workspace_id: ID of the workspace
             workspace_name: Name of the workspace
-            
+
         Returns:
             int: Number of items in the collection
         """
         collection = self.get_collection(workspace_id, workspace_name)
-        
+
         if collection is None:
             return 0
-        
+
         try:
             return collection.count()
         except Exception:
@@ -302,7 +303,7 @@ class ChromaManager:
     def delete_workspace_data(self, workspace_id: str, workspace_name: str) -> None:
         """
         Clean up all vector data for a workspace.
-        
+
         Args:
             workspace_id: Workspace ID
             workspace_name: Workspace Name
@@ -312,7 +313,7 @@ class ChromaManager:
     def hard_reset(self) -> bool:
         """
         Wipe the entire vector database.
-        
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -328,7 +329,7 @@ class ChromaManager:
 class EmbeddingManager:
     """
     Manages generation of text embeddings using various providers.
-    
+
     Supports Local Ollama and HuggingFace models.
     """
 
@@ -350,7 +351,7 @@ class EmbeddingManager:
     def get_embeddings_model(self) -> Any:
         """
         Initialize and return the appropriate LangChain embedding instance.
-        
+
         Returns:
             The embedding model instance
         """
@@ -371,26 +372,26 @@ class EmbeddingManager:
             logger.error(f"Failed to initialize embedding model: {e}")
             raise ChromaError(f"Embedding initialization failed: {e}")
 
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings for a batch of documents.
-        
+
         Args:
             texts: List of strings to encode
-            
+
         Returns:
             List of vectors
         """
         model = self.get_embeddings_model()
         return model.embed_documents(texts)
 
-    def get_query_embedding(self, query: str) -> List[float]:
+    def get_query_embedding(self, query: str) -> list[float]:
         """
         Generate embedding for a single search query.
-        
+
         Args:
             query: The user query string
-            
+
         Returns:
             The query vector
         """
@@ -410,46 +411,46 @@ class ChunkManager:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    def chunk_text(self, text: str) -> List[str]:
+    def chunk_text(self, text: str) -> list[str]:
         """
         Split a block of text into smaller context windows.
-        
+
         Prioritizes splitting at paragraphs, then sentences, then whitespace.
-        
+
         Args:
             text: The raw source text
-            
+
         Returns:
             List[str]: List of text chunks
         """
         from langchain_text_splitters import RecursiveCharacterTextSplitter
-        
+
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
             length_function=len,
             separators=["\n\n", "\n", ". ", "? ", "! ", " ", ""]
         )
-        
+
         return splitter.split_text(text)
 
-    def chunk_document(self, document: Any) -> List[Any]:
+    def chunk_document(self, document: Any) -> list[Any]:
         """
         Split a LangChain document object into multiple documents.
-        
+
         Args:
             document: A LangChain Document object
-            
+
         Returns:
             List: List of fragmented Document objects
         """
         from langchain_text_splitters import RecursiveCharacterTextSplitter
-        
+
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
             length_function=len,
             separators=["\n\n", "\n", ". ", "? ", "! ", " ", ""]
         )
-        
+
         return splitter.split_documents([document])

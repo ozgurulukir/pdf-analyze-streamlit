@@ -1,4 +1,5 @@
 """Header and navigation components."""
+
 import streamlit as st
 from streamlit_option_menu import option_menu
 
@@ -6,10 +7,11 @@ from streamlit_option_menu import option_menu
 def render_header(
     title: str = "PDF Analyzer Pro",
     on_theme_toggle: callable = None,
-    on_settings: callable = None
+    on_settings: callable = None,
 ):
     """Render app header with premium styling."""
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="
         display: flex;
         align-items: center;
@@ -51,34 +53,36 @@ def render_header(
             ">● LIVE</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
-    
+    """,
+        unsafe_allow_html=True,
+    )
+
     # Header action buttons (compact)
     _, col_btns = st.columns([6, 1])
     with col_btns:
         cols = st.columns(2)
         with cols[0]:
-            if st.button("⚙️", key="settings_btn", help="Ayarlar", use_container_width=True):
-                if on_settings: on_settings()
+            if st.button(
+                "⚙️", key="settings_btn", help="Ayarlar", use_container_width=True
+            ):
+                if on_settings:
+                    on_settings()
         with cols[1]:
             if st.button("ℹ️", key="help_btn", help="Yardım", use_container_width=True):
                 st.toast("Çalışma alanı seçin ve belgelerinizi yükleyin!", icon="ℹ️")
 
 
-def render_navigation(
-    current_page: str,
-    on_change: callable = None
-):
+def render_navigation(current_page: str, on_change: callable = None):
     """Render main navigation menu with indigo theme."""
-    
+
     pages = ["💬 Chat", "📁 Belgeler", "📊 Analiz", "⚙️ Ayarlar"]
     icons = ["chat", "folder", "chart-bar", "cog"]
-    
+
     try:
         default_index = pages.index(current_page)
     except ValueError:
         default_index = 0
-    
+
     selected = option_menu(
         menu_title=None,
         options=pages,
@@ -110,7 +114,7 @@ def render_navigation(
                 "font-weight": "600",
                 "box-shadow": "0 4px 16px rgba(99, 102, 241, 0.4)",
             },
-        }
+        },
     )
-    
+
     return selected

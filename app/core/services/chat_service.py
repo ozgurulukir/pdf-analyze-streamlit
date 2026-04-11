@@ -1,5 +1,7 @@
 """Service layer for chat and RAG operations with cache integration."""
-from typing import Any, Dict, Generator, List, Optional
+
+from collections.abc import Generator
+from typing import Any
 
 from app.core.cache import (
     cached_chroma_query,
@@ -30,10 +32,10 @@ class ChatService:
 
     def __init__(
         self,
-        db: Optional[DatabaseManager] = None,
-        chroma: Optional[ChromaManager] = None,
-        embedding: Optional[EmbeddingManager] = None,
-        use_cache: bool = True
+        db: DatabaseManager | None = None,
+        chroma: ChromaManager | None = None,
+        embedding: EmbeddingManager | None = None,
+        use_cache: bool = True,
     ):
         """
         Initialize the chat service with optional caching.
@@ -64,15 +66,15 @@ class ChatService:
         else:
             self.embedding = embedding
 
-        self._llm_config: Dict[str, Any] = {}
-        self._workspace_id: Optional[str] = None
+        self._llm_config: dict[str, Any] = {}
+        self._workspace_id: str | None = None
 
     def configure_embedding(
         self,
         use_huggingface: bool = False,
         ollama_model: str = "nomic-embed-text",
         ollama_url: str = "http://localhost:11434",
-        hf_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+        hf_model: str = "sentence-transformers/all-MiniLM-L6-v2",
     ) -> None:
         """
         Configure the embedding manager with specific settings.
@@ -88,18 +90,20 @@ class ChatService:
                 use_huggingface=use_huggingface,
                 ollama_model=ollama_model,
                 ollama_url=ollama_url,
-                hf_model=hf_model
+                hf_model=hf_model,
             )
         else:
             self.embedding = EmbeddingManager(
                 use_huggingface=use_huggingface,
                 ollama_model=ollama_model,
                 ollama_url=ollama_url,
-                hf_model=hf_model
+                hf_model=hf_model,
             )
-        logger.debug(f"Embedding manager configured: hf={use_huggingface}, model={ollama_model}")
+        logger.debug(
+            f"Embedding manager configured: hf={use_huggingface}, model={ollama_model}"
+        )
 
-    def get_cached_embedding(self, text: str) -> List[float]:
+    def get_cached_embedding(self, text: str) -> list[float]:
         """
         Get embedding for text with caching.
 
@@ -120,9 +124,9 @@ class ChatService:
         self,
         workspace_id: str,
         workspace_name: str,
-        query_embedding: List[float],
-        n_results: int = 4
-    ) -> Dict[str, Any]:
+        query_embedding: list[float],
+        n_results: int = 4,
+    ) -> dict[str, Any]:
         """
         Perform cached ChromaDB similarity search.
 
@@ -140,16 +144,13 @@ class ChatService:
                 workspace_id=workspace_id,
                 workspace_name=workspace_name,
                 query_embedding=query_embedding,
-                n_results=n_results
+                n_results=n_results,
             )
-            return {
-                "documents": docs,
-                "distances": distances,
-                "metadatas": metadatas
-            }
+            return {"documents": docs, "distances": distances, "metadatas": metadatas}
 
         # Create hash of query embedding for cache key
         import hashlib
+
         query_hash = hashlib.md5(str(query_embedding[:10]).encode()).hexdigest()[:16]
 
         return cached_chroma_query(
@@ -158,15 +159,12 @@ class ChatService:
             query_hash=query_hash,
             n_results=n_results,
             _chroma_manager=self.chroma,
-            _query_embedding=query_embedding
+            _query_embedding=query_embedding,
         )
 
     def stream_response(
-        self,
-        question: str,
-        workspace: Workspace,
-        llm_config: Dict[str, Any]
-    ) -> Generator[Dict[str, Any], None, None]:
+        self, question: str, workspace: Workspace, llm_config: dict[str, Any]
+    ) -> Generator[dict[str, Any], None, None]:
         """
         Get a streaming AI response for a question using RAG.
 
@@ -188,7 +186,9 @@ class ChatService:
                 cached_response = llm_cache.get(cache_key)
 
                 if cached_response:
-                    logger.info(f"LLM cache hit for question in workspace {workspace.id}")
+                    logger.info(
+                        f"LLM cache hit for question in workspace {workspace.id}"
+                    )
                     yield {"type": "status", "content": "📦 Önbellekten yükleniyor..."}
                     yield {"type": "cached", "content": cached_response}
                     return
@@ -199,8 +199,12 @@ class ChatService:
                 self.configure_embedding(
                     use_huggingface=embedding_config.get("use_huggingface", False),
                     ollama_model=embedding_config.get("model", "nomic-embed-text"),
-                    ollama_url=embedding_config.get("ollama_url", "http://localhost:11434"),
-                    hf_model=embedding_config.get("hf_model", "sentence-transformers/all-MiniLM-L6-v2")
+                    ollama_url=embedding_config.get(
+                        "ollama_url", "http://localhost:11434"
+                    ),
+                    hf_model=embedding_config.get(
+                        "hf_model", "sentence-transformers/all-MiniLM-L6-v2"
+                    ),
                 )
 
             # Initialize RAG chain with required components
@@ -209,7 +213,7 @@ class ChatService:
                 chroma=self.chroma,
                 embedding=self.embedding,
                 llm_config=llm_config,
-                workspace_id=workspace.id
+                workspace_id=workspace.id,
             )
 
             # Collect response for caching
@@ -230,13 +234,14 @@ class ChatService:
             yield {"type": "error", "content": str(e)}
         except Exception as e:
             logger.critical(f"Unexpected error in ChatService: {e}")
-            yield {"type": "error", "content": "Kritik bir hata oluştu. Lütfen sistem loglarını kontrol edin."}
+            yield {
+                "type": "error",
+                "content": "Kritik bir hata oluştu. Lütfen sistem loglarını kontrol edin.",
+            }
 
     def get_chat_history(
-        self,
-        workspace_id: str,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
+        self, workspace_id: str, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """
         Get chat history for a workspace with caching.
 
@@ -251,7 +256,7 @@ class ChatService:
             return cached_get_messages(workspace_id, limit)
         else:
             messages = self.db.get_messages(workspace_id, limit=limit)
-            return [m.to_dict() if hasattr(m, 'to_dict') else m for m in messages]
+            return [m.to_dict() if hasattr(m, "to_dict") else m for m in messages]
 
     def clear_workspace_history(self, workspace_id: str) -> None:
         """
@@ -273,7 +278,7 @@ class ChatService:
             logger.error(f"Failed to clear history for workspace {workspace_id}: {e}")
             raise
 
-    def get_workspace_stats(self, workspace_id: str) -> Dict[str, Any]:
+    def get_workspace_stats(self, workspace_id: str) -> dict[str, Any]:
         """
         Get statistics for a workspace with caching.
 
@@ -296,7 +301,9 @@ class ChatService:
             "file_count": len(files_data),
             "message_count": len(messages),
             "total_chunks": sum(f.chunk_count or 0 for f in files_data),
-            "last_modified": workspace.last_modified.isoformat() if workspace.last_modified else None
+            "last_modified": (
+                workspace.last_modified.isoformat() if workspace.last_modified else None
+            ),
         }
 
 
@@ -304,7 +311,7 @@ def get_cached_chat_service(
     use_huggingface: bool = False,
     ollama_model: str = "nomic-embed-text",
     ollama_url: str = "http://localhost:11434",
-    hf_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    hf_model: str = "sentence-transformers/all-MiniLM-L6-v2",
 ) -> ChatService:
     """
     Factory function to create a cached ChatService instance.
@@ -323,6 +330,6 @@ def get_cached_chat_service(
         use_huggingface=use_huggingface,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
-        hf_model=hf_model
+        hf_model=hf_model,
     )
     return service

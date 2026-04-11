@@ -63,7 +63,7 @@ class TestFileMetadataModel:
             filename="test.pdf",
             original_name="test.pdf",
             file_type="pdf",
-            size=1024
+            size=1024,
         )
         assert file.filename == "test.pdf"
         assert file.status == "pending"
@@ -77,7 +77,7 @@ class TestFileMetadataModel:
                 filename="test.exe",
                 original_name="test.exe",
                 file_type="exe",
-                size=1024
+                size=1024,
             )
 
     def test_file_size_validation(self):
@@ -88,7 +88,7 @@ class TestFileMetadataModel:
                 filename="test.pdf",
                 original_name="test.pdf",
                 file_type="pdf",
-                size=999999999999999  # Exceeds max
+                size=999999999999999,  # Exceeds max
             )
 
     def test_status_validation(self):
@@ -98,7 +98,7 @@ class TestFileMetadataModel:
                 workspace_id="ws-1",
                 filename="test.pdf",
                 file_type="pdf",
-                status="invalid_status"
+                status="invalid_status",
             )
 
 
@@ -107,10 +107,7 @@ class TestMessageModel:
 
     def test_create_message(self):
         """Test creating a message."""
-        msg = MessageModel(
-            role="user",
-            content="Hello, world!"
-        )
+        msg = MessageModel(role="user", content="Hello, world!")
         assert msg.role == "user"
         assert msg.content == "Hello, world!"
 
@@ -122,10 +119,7 @@ class TestMessageModel:
     def test_content_max_length(self):
         """Test content length validation."""
         with pytest.raises(ValueError):
-            MessageModel(
-                role="user",
-                content="x" * 50001  # Exceeds max
-            )
+            MessageModel(role="user", content="x" * 50001)  # Exceeds max
 
 
 class TestUserPreferencesModel:
@@ -153,11 +147,7 @@ class TestJobModel:
 
     def test_create_job(self):
         """Test creating a job."""
-        job = JobModel(
-            job_type="embedding",
-            workspace_id="ws-1",
-            file_ids=["file-1"]
-        )
+        job = JobModel(job_type="embedding", workspace_id="ws-1", file_ids=["file-1"])
         assert job.job_type == "embedding"
         assert job.status == "pending"
         assert job.progress == 0.0

@@ -1,4 +1,5 @@
 """Unit tests for exceptions and error handling."""
+
 import pytest
 
 from app.core.exceptions import (

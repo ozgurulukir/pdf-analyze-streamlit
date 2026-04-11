@@ -1,4 +1,5 @@
 """Unit tests for rate limiting."""
+
 import time
 
 from app.core.rate_limiter import (
@@ -137,7 +138,7 @@ class TestRateLimiter:
             requests_per_minute=10,
             requests_per_hour=100,
             burst_limit=5,
-            enable_burst=True
+            enable_burst=True,
         )
         limiter = RateLimiter(config)
 
@@ -152,7 +153,7 @@ class TestRateLimiter:
             requests_per_minute=2,
             requests_per_hour=100,
             burst_limit=10,
-            enable_burst=False
+            enable_burst=False,
         )
         limiter = RateLimiter(config)
 
@@ -173,9 +174,7 @@ class TestRateLimitExceededError:
     def test_error_creation(self):
         """Test error creation."""
         error = RateLimitExceededError(
-            "Rate limit exceeded",
-            retry_after=60.0,
-            reset_at=time.time() + 60
+            "Rate limit exceeded", retry_after=60.0, reset_at=time.time() + 60
         )
 
         assert str(error) == "Rate limit exceeded"
@@ -187,6 +186,7 @@ class TestRateLimitDecorator:
 
     def test_allows_under_limit(self):
         """Test decorator allows under limit."""
+
         @rate_limit(key_func=lambda: "test_user")
         def allowed_func():
             return "success"

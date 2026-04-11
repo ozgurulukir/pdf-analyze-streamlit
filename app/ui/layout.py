@@ -1,10 +1,12 @@
 """Layout components for tilted-T design."""
+
 import streamlit as st
 
 
 def apply_layout_styles():
     """Apply professional CSS styles aligned with Streamlit's native dark theme."""
-    st.markdown("""
+    st.markdown(
+        """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -102,7 +104,7 @@ def apply_layout_styles():
         border-color: #6366f1 !important;
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
     }
-    
+
     /* Chat Input */
     .stChatInput {
         border-radius: 14px !important;
@@ -164,7 +166,7 @@ def apply_layout_styles():
         padding: 0.75rem 1rem !important;
     }
     .stExpander summary::marker { color: #6366f1; }
-    
+
     /* ========================
        METRIC CARDS
     ======================== */
@@ -308,12 +310,15 @@ def apply_layout_styles():
         to   { opacity:1; transform: translateY(0); }
     }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
+
 
 def render_tilted_t_layout(chat_area, input_area, sidebar=None):
     """
     Render tilted-T layout.
-    
+
     Structure:
     - Top: Wide chat message area
     - Bottom: Wide input bar
@@ -324,18 +329,18 @@ def render_tilted_t_layout(chat_area, input_area, sidebar=None):
         main_col, side_col = st.columns([4, 1])
     else:
         main_col = st.container()
-    
+
     with main_col:
         # Chat area (top - takes most space)
         st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         chat_area()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
+        st.markdown("</div>", unsafe_allow_html=True)
+
         # Input bar (bottom - wide)
         st.markdown('<div class="input-bar-container">', unsafe_allow_html=True)
         input_area()
-        st.markdown('</div>', unsafe_allow_html=True)
-    
+        st.markdown("</div>", unsafe_allow_html=True)
+
     # Sidebar
     if sidebar:
         with side_col:
@@ -346,5 +351,5 @@ def render_simple_layout(sidebar_content, main_content):
     """Render simple layout with sidebar."""
     with st.sidebar:
         sidebar_content()
-    
+
     main_content()

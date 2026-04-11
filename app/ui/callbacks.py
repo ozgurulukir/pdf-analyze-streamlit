@@ -1,28 +1,23 @@
 """Callback functions for UI events with cache integration."""
+
 from datetime import datetime
-from typing import Dict, List
 
 import streamlit as st
 
-from app.core import DatabaseManager, FileMetadata, Message, Workspace, get_job_queue
+from app.core import Workspace
 from app.core.cache import (
     cached_get_messages,
     cached_get_workspace_files,
-    cached_get_workspaces,
     clear_all_caches,
-    get_cache_stats,
     get_cached_chroma_manager,
     get_cached_database_manager,
-    get_cached_embedding_manager,
     invalidate_embedding_cache,
     invalidate_file_cache,
     invalidate_workspace_cache,
 )
-from app.core.chroma import ChromaManager, EmbeddingManager
 from app.core.config import AppConfig
 from app.core.constants import SessionKeys
 from app.core.logger import logger
-from app.core.services.chat_service import ChatService
 from app.core.services.file_service import FileService
 
 
@@ -120,7 +115,10 @@ def delete_workspace_callback(workspace_id: str) -> None:
             # Invalidate cache
             invalidate_workspace_cache(workspace_id)
 
-            if st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value) == workspace_id:
+            if (
+                st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
+                == workspace_id
+            ):
                 st.session_state[SessionKeys.ACTIVE_WORKSPACE_ID.value] = None
 
             load_workspaces()
@@ -130,7 +128,9 @@ def delete_workspace_callback(workspace_id: str) -> None:
         st.error("Çalışma alanı silinirken hata oluştu.")
 
 
-def upload_files_callback(uploaded_files: List, workspace: Workspace, settings: Dict) -> None:
+def upload_files_callback(
+    uploaded_files: list, workspace: Workspace, settings: dict
+) -> None:
     """Handle multi-file upload via FileService."""
     if not uploaded_files or not workspace:
         return
@@ -191,9 +191,15 @@ def process_directory_callback(directory_path: str, workspace: Workspace) -> Non
 
         # Build embedding settings from state
         settings = {
-            "use_huggingface": st.session_state.get(SessionKeys.USE_HUGGINGFACE.value, False),
-            "model_name": st.session_state.get(SessionKeys.EMBED_MODEL.value) if not st.session_state.get(SessionKeys.USE_HUGGINGFACE.value) else st.session_state.get(SessionKeys.HF_EMBED_MODEL.value),
-            "ollama_url": st.session_state.get(SessionKeys.OLLAMA_URL.value)
+            "use_huggingface": st.session_state.get(
+                SessionKeys.USE_HUGGINGFACE.value, False
+            ),
+            "model_name": (
+                st.session_state.get(SessionKeys.EMBED_MODEL.value)
+                if not st.session_state.get(SessionKeys.USE_HUGGINGFACE.value)
+                else st.session_state.get(SessionKeys.HF_EMBED_MODEL.value)
+            ),
+            "ollama_url": st.session_state.get(SessionKeys.OLLAMA_URL.value),
         }
 
         with st.spinner("Dizin taranıyor..."):
@@ -224,7 +230,9 @@ def reset_system_callback() -> None:
 
         # 2. Reset Vector Store
         config = AppConfig()
-        chroma_path = st.session_state.get(SessionKeys.CHROMA_PATH.value, config.CHROMA_PERSIST_DIR)
+        chroma_path = st.session_state.get(
+            SessionKeys.CHROMA_PATH.value, config.CHROMA_PERSIST_DIR
+        )
         chroma = get_cached_chroma_manager({"chroma_path": chroma_path})
         chroma.hard_reset()
 
@@ -269,7 +277,9 @@ def save_settings_callback() -> None:
 
         # Check if embedding settings changed
         old_use_hf = prefs.config.get(SessionKeys.USE_HUGGINGFACE.value, False)
-        old_embed_model = prefs.config.get(SessionKeys.EMBED_MODEL.value, "nomic-embed-text")
+        old_embed_model = prefs.config.get(
+            SessionKeys.EMBED_MODEL.value, "nomic-embed-text"
+        )
 
         # Define keys to persist
         config_keys = [
@@ -286,7 +296,7 @@ def save_settings_callback() -> None:
             SessionKeys.CHROMA_PATH.value,
             SessionKeys.CHUNK_SIZE.value,
             SessionKeys.CHUNK_OVERLAP.value,
-            SessionKeys.THEME.value
+            SessionKeys.THEME.value,
         ]
 
         # Capture current state
@@ -301,7 +311,9 @@ def save_settings_callback() -> None:
 
         # Invalidate embedding cache if settings changed
         new_use_hf = new_config.get(SessionKeys.USE_HUGGINGFACE.value, False)
-        new_embed_model = new_config.get(SessionKeys.EMBED_MODEL.value, "nomic-embed-text")
+        new_embed_model = new_config.get(
+            SessionKeys.EMBED_MODEL.value, "nomic-embed-text"
+        )
 
         if old_use_hf != new_use_hf or old_embed_model != new_embed_model:
             invalidate_embedding_cache()
@@ -322,11 +334,11 @@ def clear_cache_callback() -> None:
         st.error("Önbellek temizlenemedi.")
 
 
-def get_cached_files(workspace_id: str) -> List:
+def get_cached_files(workspace_id: str) -> list:
     """Get files for a workspace using cache."""
     from app.core.models import FileMetadata
 
-    db = get_cached_database_manager()
+    get_cached_database_manager()
     files_data = cached_get_workspace_files(workspace_id)
 
     # Convert dicts back to objects if needed
@@ -334,19 +346,19 @@ def get_cached_files(workspace_id: str) -> List:
     for f in files_data:
         if isinstance(f, dict):
             file_obj = FileMetadata(
-                id=f.get('id'),
-                workspace_id=f.get('workspace_id'),
-                filename=f.get('filename'),
-                original_name=f.get('original_name'),
-                file_type=f.get('file_type'),
-                size=f.get('size', 0),
-                status=f.get('status', 'pending'),
-                chunk_count=f.get('chunk_count', 0),
-                content_hash=f.get('content_hash'),
-                uploaded_at=f.get('uploaded_at'),
-                processed_at=f.get('processed_at'),
-                error_message=f.get('error_message'),
-                tags=f.get('tags', [])
+                id=f.get("id"),
+                workspace_id=f.get("workspace_id"),
+                filename=f.get("filename"),
+                original_name=f.get("original_name"),
+                file_type=f.get("file_type"),
+                size=f.get("size", 0),
+                status=f.get("status", "pending"),
+                chunk_count=f.get("chunk_count", 0),
+                content_hash=f.get("content_hash"),
+                uploaded_at=f.get("uploaded_at"),
+                processed_at=f.get("processed_at"),
+                error_message=f.get("error_message"),
+                tags=f.get("tags", []),
             )
             files.append(file_obj)
         else:
