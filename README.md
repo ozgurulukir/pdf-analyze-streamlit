@@ -6,10 +6,11 @@ AI tabanlı, modern ve modüler bir belge analiz uygulaması. Streamlit, LangCha
 
 - 📁 **Gelişmiş Çalışma Alanı Yönetimi**: Belgelerinizi farklı çalışma alanlarında (workspaces) organize edin.
 - 📄 **Üstün Metin Çıkarımı (Kreuzberg)**: PDF, DOCX, Resim ve daha birçok formattan **OCR destekli**, yüksek performanslı metin çıkarımı.
-- 💬 **Gerçek Zamanlı Sohbet**: Streaming (akış) desteği ve akıllı bağlam yönetimi ile gecikmesiz yanıtlar.
+- 🌍 **%100 Yerelleştirme (i18n)**: Pydantic v2 tabanlı merkezi dil sistemi ile sıfır "hardcoded" metin. Dinamik dil desteği altyapısı.
+- 💬 **Modern Sohbet Arayüzü**: Etkileşim kartları (Q&A cards) ile gruplandırılmış soru-cevap yapısı ve canlı akış desteği.
 - 🧠 **Esnek LLM & Embedding**: Ollama (Cloud/Yerel) ve OpenAI uyumlu API desteği. HuggingFace modelleri ile yerel embedding imkanı.
-- 🛡️ **Güvenlik & Stabilite**: Entegre **Rate Limiter**, içerik **Sanitizer** (temizleyici) ve sistem için otomatik **Health Checks**.
-- 🎨 **Premium UI**: Streamlit 1.40+ native bileşenleri (dialog, popover, status) ve özel CSS dokunuşları ile optimize edilmiş kullanıcı deneyimi.
+- 🛡️ **Güvenlik & Kalıcılık**: Entegre **Rate Limiter**, içerik **Sanitizer** ve veritabanı tabanlı kalıcı (persistent) sistem ayarları.
+- 🎨 **Premium UI**: Streamlit 1.40+ native bileşenleri (dialog, popover, status, pills) ile optimize edilmiş kullanıcı deneyimi.
 
 ## 🏗️ Mimari Yapı
 
@@ -17,7 +18,7 @@ Uygulama, sürdürülebilirlik ve tip güvenliği için dikey katmanlı, **Repos
 
 - **Core Layer**:
   - **Repository Pattern**: Veri erişimi arayüzler (Interfaces) üzerinden soyutlanmıştır (SQLite & ChromaDB).
-  - **Pydantic v2 Config**: Tüm uygulama yapılandırması tip güvenliği sağlayan `AppConfig` modeli ile yönetilir.
+  - **Pydantic v2 Config & i18n**: Tüm uygulama yapılandırması ve yerelleştirme metinleri tip güvenliği sağlayan modeller ile merkezi olarak yönetilir.
   - **Background Jobs**: Uzun süreli belge işleme süreçleri için iş kuyruğu yönetimi.
 - **Service Layer**: İş mantığı, asenkron sohbet servisleri ve belge işleme boru hatları (pipelines).
 - **UI Layer**: Streamlit tabanlı modüler sayfalar, sidebar bileşenleri ve dinamik callback yönetimi.
