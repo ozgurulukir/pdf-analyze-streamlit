@@ -33,9 +33,10 @@ def init_session_state() -> None:
     logger.info("Initializing session state")
 
     try:
-        from app.core import DatabaseManager
+        from app.core.container import get_database, get_chroma
         from app.core.exceptions import DatabaseError
-        db = DatabaseManager()
+        db = get_database()
+        chroma_manager = get_chroma()
         prefs = db.preferences.get()
     except DatabaseError as e:
         logger.error(f"Failed to load preferences from DB: {e}")

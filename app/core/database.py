@@ -24,22 +24,13 @@ class DatabaseManager:
     messages, chunks, Q&A pairs, preferences, and background jobs.
     """
 
-    def __init__(self, db_path: str | None = None):
+    def __init__(self, db_path: str):
         """
         Initialize the database manager and its repositories.
 
         Args:
             db_path: Path to the SQLite database file
         """
-        if db_path is None:
-            try:
-                from app.core.container import get_config
-
-                db_path = get_config().DB_PATH
-            except Exception as e:
-                # Fallback during container initialization
-                logger.debug(f"Container get_config failed, using default AppConfig: {e}")
-                db_path = AppConfig().DB_PATH
         self.db_path = db_path
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 

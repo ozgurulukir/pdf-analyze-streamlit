@@ -16,14 +16,12 @@ from app.core.models import Job
 class JobQueue:
     """Thread-safe job queue for background processing."""
 
-    def __init__(self, max_workers: int = 2):
+    def __init__(self, db: DatabaseManager, max_workers: int = 2):
         self._queue: queue.Queue = queue.Queue()
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
-        from app.core.container import get_database
-
-        self._db = get_database()
+        self._db = db
 
     def submit_job(
         self,
@@ -163,11 +161,13 @@ class JobQueue:
 _job_queue: JobQueue | None = None
 
 
-def get_job_queue() -> JobQueue:
+def get_job_queue(db: DatabaseManager | None = None) -> JobQueue:
     """Get or create the global job queue."""
     global _job_queue
     if _job_queue is None:
-        _job_queue = JobQueue(max_workers=2)
+        if db is None:
+            raise ValueError("JobQueue must be initialized with a DatabaseManager")
+        _job_queue = JobQueue(db=db, max_workers=2)
     return _job_queue
 
 
@@ -313,6 +313,7 @@ def create_embedding_job(
     workspace_id: str,
     workspace_name: str,
     db: DatabaseManager,
+    config: AppConfig,
     embedding_settings: dict[str, Any] | None = None,
 ) -> Job:
     """Create a background job for embedding processing."""
@@ -337,10 +338,6 @@ def create_embedding_job(
         embedding_settings.get("chunk_overlap") if embedding_settings else None
     )
 
-    from app.core.container import get_config
-
-    config = get_config()
-
     chunk_size = ui_chunk_size or config.CHUNK_SIZE
     chunk_overlap = ui_chunk_overlap or config.CHUNK_OVERLAP
 
@@ -363,7 +360,7 @@ def create_embedding_job(
     chroma_manager = ChromaManager(persist_directory=chroma_path)
 
     worker = EmbeddingWorker(embedding_manager, chunk_manager, chroma_manager)
-    job_queue = get_job_queue()
+    job_queue = get_job_queue(db=db)
 
     return job_queue.submit_job(
         job_type="embed",

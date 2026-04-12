@@ -141,10 +141,6 @@ def upload_files_callback(
         # Invalidate file cache for this workspace
         invalidate_file_cache(workspace.id)
         load_workspaces()
-    if added_count > 0:
-        # Invalidate file cache for this workspace
-        invalidate_file_cache(workspace.id)
-        load_workspaces()
 
 
 @handle_errors("Dosya silinemedi", use_alert=True)
@@ -195,10 +191,6 @@ def process_directory_callback(directory_path: str, workspace: Workspace) -> Non
         for msg in successes:
             add_alert(msg, "success")
 
-    if added_count > 0:
-        # Invalidate file cache
-        invalidate_file_cache(workspace.id)
-        load_workspaces()
     if added_count > 0:
         # Invalidate file cache
         invalidate_file_cache(workspace.id)
@@ -381,6 +373,57 @@ def on_embed_type_change_callback():
     embed_choice = state.get("_temp_embed_type")
     state.set(SessionKeys.USE_HUGGINGFACE, embed_choice == "HuggingFace")
     save_settings_callback()
+
+
+@handle_errors("Bağlantı testi sırasında hata oluştu", use_alert=True)
+def test_connections_callback():
+    """Test both LLM and Embedding connections with current settings."""
+    from app.core.rag import create_llm
+    from app.core.chroma import EmbeddingManager
+    from app.core.container import get_config
+    
+    config = get_config()
+    
+    with st.spinner("Bağlantılar test ediliyor..."):
+        # 1. Test LLM
+        try:
+            llm = create_llm(
+                base_url=state.get(SessionKeys.LLM_BASE_URL) or config.LLM_BASE_URL,
+                api_key=state.get(SessionKeys.OLLAMA_API_KEY) or config.OLLAMA_API_KEY,
+                model=state.get(SessionKeys.LLM_MODEL) or config.LLM_MODEL,
+                temperature=0.1
+            )
+            # Try a simple invoke (some providers might require this to check runner)
+            llm.invoke("Merhaba")
+            llm_ok = True
+        except Exception as e:
+            logger.error(f"LLM test failed: {e}")
+            add_alert(f"LLM Bağlantı Hatası: {str(e)}", "error")
+            llm_ok = False
+
+        # 2. Test Embedding
+        try:
+            use_hf = state.get(SessionKeys.USE_HUGGINGFACE, False)
+            embed_manager = EmbeddingManager(
+                use_huggingface=use_hf,
+                ollama_model=state.get(SessionKeys.EMBED_MODEL) or config.EMBED_MODEL,
+                ollama_url=state.get(SessionKeys.OLLAMA_URL) or config.OLLAMA_BASE_URL,
+                hf_model=state.get(SessionKeys.HF_EMBED_MODEL) or config.HF_EMBED_MODEL
+            )
+            # Try a simple embedding
+            embed_manager.get_query_embedding("test")
+            embed_ok = True
+        except Exception as e:
+            logger.error(f"Embedding test failed: {e}")
+            add_alert(f"Embedding Bağlantı Hatası: {str(e)}", "error")
+            embed_ok = False
+
+        if llm_ok and embed_ok:
+            add_alert("Tüm bağlantılar başarıyla doğrulandı!", "success")
+        elif llm_ok:
+            add_alert("LLM bağlantısı başarılı, ancak Embedding hatası var.", "warning")
+        elif embed_ok:
+            add_alert("Embedding bağlantısı başarılı, ancak LLM hatası var.", "warning")
 
 
 @handle_errors("Önbellek temizlenemedi")

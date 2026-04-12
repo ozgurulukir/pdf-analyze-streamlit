@@ -8,6 +8,7 @@ from app.ui.callbacks import (
     on_embed_type_change_callback,
     on_provider_change_callback,
     save_settings_callback,
+    test_connections_callback,
 )
 
 
@@ -86,8 +87,8 @@ def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
         on_change=save_settings_callback,
     )
 
-    if st.button("🔌 Bağlantıyı Test Et", key=f"{key_prefix}test_conn", use_container_width=True):
-        st.toast("Bağlantı başarılı!", icon="✅")
+    if st.button("🔌 Bağlantıyı Test Et", key=f"{key_prefix}test_conn", use_container_width=True, on_click=test_connections_callback):
+        pass
 
     return {"model": llm_model}
 

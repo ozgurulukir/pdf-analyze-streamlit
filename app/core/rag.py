@@ -33,9 +33,7 @@ def create_llm(
     Standalone helper to create a LangChain LLM instance.
     Useful for connection testing or external orchestration.
     """
-    from app.core.container import get_config
-    config = get_config()
-    temperature = temperature if temperature is not None else config.LLM_TEMPERATURE
+    # temperature logic handled by caller or via default from config if needed
     try:
         return ChatOpenAI(
             openai_api_key=SecretStr(api_key) if api_key else None,
@@ -81,16 +79,14 @@ class PromptTemplates:
 class MessageCache:
     """Thread-safe LRU cache for chat history using deque for O(1) operations."""
 
-    def __init__(self, max_size: int | None = None):
+    def __init__(self, max_size: int):
         """
         Initialize the message cache.
 
         Args:
-            max_size: Maximum messages (uses config if None).
+            max_size: Maximum messages.
         """
-        from app.core.container import get_config
-        config = get_config()
-        self.max_size = max_size or config.MAX_MESSAGES_IN_MEMORY
+        self.max_size = max_size
         self.messages: collections.deque = collections.deque(maxlen=self.max_size)
 
     def add(self, message: Message) -> None:
@@ -200,14 +196,15 @@ class RAGChain:
         """
         Initialize the RAG chain.
         """
-        from app.core.container import get_config
+        if config is None:
+            raise ValueError("RAGChain requires an AppConfig instance")
         self.db = db
         self.chroma = chroma
         self.embedding = embedding
         self.llm_config = llm_config
         self.workspace_id = workspace_id
         self.session_id = session_id
-        self.config = config or get_config()
+        self.config = config
 
         # Load workspace metadata
         self.workspace = self.db.workspaces.get_by_id(workspace_id)

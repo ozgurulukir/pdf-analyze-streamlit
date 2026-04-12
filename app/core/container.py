@@ -204,7 +204,7 @@ class AppContainer(Container):
         # 2. Database
         from app.core.database import DatabaseManager
 
-        db = DatabaseManager(config.DB_PATH)
+        db = DatabaseManager(db_path=config.DB_PATH)
         self.register_instance(DatabaseManager, db)
 
         # 3. Sync Config from DB (Bridge the gap)
@@ -220,13 +220,17 @@ class AppContainer(Container):
         from app.core.chroma import ChromaManager, EmbeddingManager
 
         # Re-initialize managers with potentially updated config
-        self.register(ChromaManager, singleton=True)
+        self.register(
+            ChromaManager,
+            factory=lambda: ChromaManager(persist_directory=config.CHROMA_PERSIST_DIR),
+            singleton=True,
+        )
         self.register(EmbeddingManager, singleton=True)
 
         # 5. Jobs
         from app.core.jobs import JobQueue
 
-        self.register(JobQueue, singleton=True)
+        self.register(JobQueue, factory=lambda: JobQueue(db=db), singleton=True)
 
         # 6. Services
         from app.core.services.chat_service import ChatService
@@ -268,6 +272,16 @@ class AppContainer(Container):
     def get_rag_chain(self, **kwargs) -> Any:
         """Get a fresh RAG orchestrator instance with provided context."""
         from app.core.rag import RAGChain
+
+        if "config" not in kwargs:
+            kwargs["config"] = self.get_config()
+        if "db" not in kwargs:
+            kwargs["db"] = self.get_database()
+        if "chroma" not in kwargs:
+            kwargs["chroma"] = self.get_chroma()
+        if "embedding" not in kwargs:
+            kwargs["embedding"] = self.get_embedding_manager()
+
         return RAGChain(**kwargs)
 
 

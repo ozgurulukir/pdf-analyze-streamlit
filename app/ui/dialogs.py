@@ -128,8 +128,8 @@ def global_settings_dialog():
 
             # ID Consistency & Health Utility
             st.markdown("### 🛠️ Sistem Sağlığı")
-            from app.core import DatabaseManager
-            db = DatabaseManager()
+            from app.core.container import get_database
+            db = get_database()
             ws_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
             sess_id = st.session_state.get(SessionKeys.ACTIVE_SESSION_ID.value)
 
@@ -184,7 +184,7 @@ def global_settings_dialog():
 def document_library_dialog(settings: dict):
     """Dialog for document management within the active workspace."""
     from app.ui.pages.library_page import render_library_page
-    render_library_page(settings=settings)
+    render_library_page(settings=settings, is_dialog=True)
 
 
 @st.dialog("💬 Sohbet Geçmişi", width="large")

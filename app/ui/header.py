@@ -25,7 +25,8 @@ def render_header():
     L = state.locale
     current_page = state.current_page
 
-    db = DatabaseManager()
+    from app.core.container import get_database
+    db = get_database()
     active_ws = None
     if active_id:
         try:
@@ -107,7 +108,7 @@ def render_header():
 
     # 4. Minimalist Background Job Tracker (Fragment)
     from app.core.jobs import get_job_queue
-    job_queue = get_job_queue()
+    job_queue = get_job_queue(db=db)
 
     @st.fragment(run_every="2s")
     def render_job_progress():

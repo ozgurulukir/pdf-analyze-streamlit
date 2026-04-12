@@ -56,12 +56,11 @@ def get_status_config(L):
 FILE_ICONS = {"pdf": "📕", "txt": "📄", "docx": "📘", "md": "📝", "html": "🌐"}
 
 
-@st.dialog("Yeni Çalışma Alanı")
-def create_workspace_dialog():
-    """Dialog for creating a workspace."""
+def render_create_workspace_form():
+    """Form content for creating a workspace."""
     L = st.session_state.locale
-    new_name = st.text_input(L.workspace.name_placeholder, placeholder="Örn: Hukuki Belgeler")
-    if st.button(L.common.confirm, type="primary", use_container_width=True):
+    new_name = st.text_input(L.workspace.name_placeholder, placeholder="Örn: Hukuki Belgeler", key="inline_create_ws_name")
+    if st.button(L.common.confirm, type="primary", use_container_width=True, key="inline_create_ws_btn"):
         if new_name.strip():
             create_workspace_callback(new_name)
             st.success(f"'{new_name}' {L.common.success}")
@@ -69,27 +68,40 @@ def create_workspace_dialog():
         else:
             st.error(L.common.error)
 
+@st.dialog("Yeni Çalışma Alanı")
+def create_workspace_dialog():
+    """Dialog wrapper for workspace creation."""
+    render_create_workspace_form()
 
-@st.dialog("Çalışma Alanını Yeniden Adlandır")
-def rename_workspace_dialog(workspace_id, current_name):
-    """Dialog for renaming a workspace."""
+
+def render_rename_workspace_form(workspace_id, current_name):
+    """Form content for renaming a workspace."""
     L = st.session_state.locale
-    new_name = st.text_input(L.workspace.rename_dialog_title, value=current_name)
-    if st.button(L.common.update, type="primary", use_container_width=True):
+    new_name = st.text_input(L.workspace.rename_dialog_title, value=current_name, key=f"inline_ren_name_{workspace_id}")
+    if st.button(L.common.update, type="primary", use_container_width=True, key=f"inline_ren_btn_{workspace_id}"):
         if new_name.strip():
             rename_workspace_callback(workspace_id, new_name)
             st.rerun()
 
+@st.dialog("Çalışma Alanını Yeniden Adlandır")
+def rename_workspace_dialog(workspace_id, current_name):
+    """Dialog wrapper for workspace renaming."""
+    render_rename_workspace_form(workspace_id, current_name)
 
-@st.dialog("Çalışma Alanını Sil")
-def delete_workspace_confirm_dialog(workspace_id, name):
-    """Confirm deletion."""
+
+def render_delete_workspace_form(workspace_id, name):
+    """Form content for deleting a workspace."""
     L = st.session_state.locale
     st.warning(L.workspace.delete_confirm)
     st.info(L.common.info)
-    if st.button(L.common.delete, type="primary", use_container_width=True):
+    if st.button(L.common.delete, type="primary", use_container_width=True, key=f"inline_del_btn_{workspace_id}"):
         delete_workspace_callback(workspace_id)
         st.rerun()
+
+@st.dialog("Çalışma Alanını Sil")
+def delete_workspace_confirm_dialog(workspace_id, name):
+    """Dialog wrapper for workspace deletion."""
+    render_delete_workspace_form(workspace_id, name)
 
 
 def render_file_card_visual(file, on_delete):
@@ -108,6 +120,10 @@ def render_file_card_visual(file, on_delete):
             st.markdown(f"**{file.original_name}**")
             # Using st.pills for status would be cool but here labels are fixed
             st.caption(f"{status['icon']} {status['label']} • {ext.upper()} • {file_size_kb:.1f} KB")
+            
+            # Show error message if processing failed
+            if file.status == "error" and file.error_message:
+                st.error(f"⚠️ {file.error_message}")
 
         # Tools row
         st.write("")
@@ -117,7 +133,7 @@ def render_file_card_visual(file, on_delete):
             st.rerun()
 
 
-def render_library_page(settings: dict):
+def render_library_page(settings: dict, is_dialog: bool = False):
     """Render the document library page with modern UI."""
     db = get_cached_database_manager()
     active_ws_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
@@ -135,13 +151,14 @@ def render_library_page(settings: dict):
 
     L = st.session_state.locale
 
-    # Page Header (Native 1.40+)
-    with st.container(border=True):
-        h_col1, h_col2 = st.columns([1, 8], vertical_alignment="center")
-        h_col1.markdown("# 📚")
-        with h_col2:
-            st.subheader(L.library.header_subtitle)
-            st.caption(L.library.header_caption)
+    # Page Header (Only in Page mode to save space in Dialog)
+    if not is_dialog:
+        with st.container(border=True):
+            h_col1, h_col2 = st.columns([1, 8], vertical_alignment="center")
+            h_col1.markdown("# 📚")
+            with h_col2:
+                st.subheader(L.library.header_subtitle)
+                st.caption(L.library.header_caption)
 
     # Tabs
     tab_stats, tab_manage, tab_upload, tab_files = st.tabs(
@@ -176,28 +193,52 @@ def render_library_page(settings: dict):
         col_ws, col_create = st.columns([4, 1])
         with col_create:
             if st.button(L.common.edit, use_container_width=True, type="primary"):
-                create_workspace_dialog()
+                if is_dialog:
+                    st.session_state.show_create_ws_inline = not st.session_state.get("show_create_ws_inline", False)
+                else:
+                    create_workspace_dialog()
+
+        if st.session_state.get("show_create_ws_inline", False):
+            with st.container(border=True):
+                st.markdown(f"#### {L.workspace.new_workspace}")
+                render_create_workspace_form()
 
         for ws in workspaces:
             is_active = active_ws and ws.id == active_ws.id
             with st.container(border=True):
-                c1, c2, c3 = st.columns([0.1, 0.6, 0.3], vertical_alignment="center")
-                with c1:
-                    st.markdown("### ✅" if is_active else "### 📂")
-                with c2:
-                    st.markdown(f"**{ws.name}**")
-                    st.caption(
-                        f"{ws.file_count} belge • Son işlem: {ws.last_modified.strftime('%d/%m/%Y')}"
-                    )
-                with c3:
+                main_c, action_c = st.columns([0.7, 0.3], vertical_alignment="center")
+                
+                with main_c:
+                    c1, c2 = st.columns([0.1, 0.9])
+                    c1.markdown("### ✅" if is_active else "### 📂")
+                    with c2:
+                        st.markdown(f"**{ws.name}**")
+                        st.caption(f"{ws.file_count} belge • Son işlem: {ws.last_modified.strftime('%d/%m/%Y')}")
+
+                with action_c:
                     sub1, sub2, sub3 = st.columns(3)
                     if sub1.button("📂", key=f"sel_{ws.id}", help="Seç", use_container_width=True):
                         select_workspace_callback(ws.id)
                         st.rerun()
                     if sub2.button("📝", key=f"ren_{ws.id}", help="Ad değiştir", use_container_width=True):
-                        rename_workspace_dialog(ws.id, ws.name)
+                        if is_dialog:
+                            st.session_state[f"show_ren_{ws.id}"] = not st.session_state.get(f"show_ren_{ws.id}", False)
+                        else:
+                            rename_workspace_dialog(ws.id, ws.name)
                     if sub3.button("🗑️", key=f"del_{ws.id}", help="Sil", use_container_width=True):
-                        delete_workspace_confirm_dialog(ws.id, ws.name)
+                        if is_dialog:
+                            st.session_state[f"show_del_{ws.id}"] = not st.session_state.get(f"show_del_{ws.id}", False)
+                        else:
+                            delete_workspace_confirm_dialog(ws.id, ws.name)
+                
+                # Inline forms for dialog mode
+                if is_dialog:
+                    if st.session_state.get(f"show_ren_{ws.id}", False):
+                        with st.container(border=True):
+                            render_rename_workspace_form(ws.id, ws.name)
+                    if st.session_state.get(f"show_del_{ws.id}", False):
+                        with st.container(border=True):
+                            render_delete_workspace_form(ws.id, ws.name)
 
     with tab_upload:
         if active_ws:

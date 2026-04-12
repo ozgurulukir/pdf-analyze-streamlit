@@ -2,7 +2,6 @@
 
 import streamlit as st
 
-from app.core import DatabaseManager
 from app.core.constants import SessionKeys
 from app.core.logger import logger
 
@@ -27,7 +26,8 @@ def render_preference_adjuster(preferences):
 
 
     def save_weight_change(tag_to_update):
-        db = DatabaseManager()
+        from app.core.container import get_database
+        db = get_database()
         is_active = st.session_state[f"pref_{tag_to_update}"]
 
         # Çelişki kontrolü (Mutual Exclusion): Concise vs Detailed

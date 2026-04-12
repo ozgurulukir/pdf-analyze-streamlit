@@ -228,9 +228,8 @@ def render_document_stats(
         st.warning("⚠️ Bu çalışma alanında henüz belge yok.")
         return
 
-    from app.core.chroma import ChromaManager
-
-    chroma_manager = ChromaManager()
+    from app.core.container import get_chroma
+    chroma_manager = get_chroma()
     chunk_count = chroma_manager.get_chunk_count(workspace_id, workspace_name)
 
     total_size = sum(f.size for f in files) / 1024  # KB

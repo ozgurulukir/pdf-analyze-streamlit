@@ -61,3 +61,5 @@ developer/
 *.log
 .cache/
 .sgconfig/
+scratch_check_db.py
+data/app.db

@@ -27,17 +27,13 @@ class ChromaManager:
     chunk ingestion, and similarity querying.
     """
 
-    def __init__(self, persist_directory: str | None = None):
+    def __init__(self, persist_directory: str):
         """
         Initialize the Chroma manager.
 
         Args:
             persist_directory: Local path to store the vector database
         """
-        if persist_directory is None:
-            from app.core.container import get_config
-
-            persist_directory = get_config().CHROMA_PERSIST_DIR
         self.persist_directory = persist_directory
         self._client: ClientAPI | None = None
 
@@ -424,8 +420,19 @@ class EmbeddingManager:
             model = self.get_embeddings_model()
             return model.embed_documents(texts)
         except Exception as e:
-            logger.error(f"Embedding generation failed: {e}")
-            raise EmbeddingError(f"Failed to generate embeddings: {e}")
+            error_msg = str(e)
+            logger.error(f"Embedding generation failed: {error_msg}")
+            
+            # Specific handling for Ollama Windows error
+            if "open NUL: Access is denied" in error_msg:
+                tip = (
+                    "\n\n💡 **İPUCU:** Bu hata genellikle Ollama'nın Windows üzerinde bir izin sorunu "
+                    "yaşamasından kaynaklanır. Lütfen Ollama'yı tamamen kapatıp (System Tray'den) "
+                    "Yönetici olarak yeniden başlatın veya Ayarlar'dan 'HuggingFace' sağlayıcısına geçin."
+                )
+                raise EmbeddingError(f"Ollama Runner Hatası: {error_msg}{tip}")
+                
+            raise EmbeddingError(f"Failed to generate embeddings: {error_msg}")
 
     def get_query_embedding(self, query: str) -> list[float]:
         """
@@ -441,8 +448,18 @@ class EmbeddingManager:
             model = self.get_embeddings_model()
             return model.embed_query(query)
         except Exception as e:
-            logger.error(f"Query embedding generation failed: {e}")
-            raise EmbeddingError(f"Failed to generate query embedding: {e}")
+            error_msg = str(e)
+            logger.error(f"Query embedding generation failed: {error_msg}")
+            
+            # Specific handling for Ollama Windows error
+            if "open NUL: Access is denied" in error_msg:
+                tip = (
+                    "\n\n💡 **İPUCU:** Ollama runner başlatılamadı (Erişim Engellendi). "
+                    "Ollama uygulamasını yeniden başlatmayı deneyin veya HuggingFace modellerini kullanın."
+                )
+                raise EmbeddingError(f"Ollama Runner Hatası: {error_msg}{tip}")
+                
+            raise EmbeddingError(f"Failed to generate query embedding: {error_msg}")
 
 
 class ChunkManager:

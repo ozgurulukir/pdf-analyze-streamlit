@@ -50,7 +50,7 @@ def render_empty_chat():
 
 def render_chat_page(settings):
     """Render the focused canvas chat interface."""
-    from app.core import DatabaseManager
+    from app.core.container import get_database
     workspace_id = state.active_workspace_id
     session_id = state.active_session_id
     L = state.locale
@@ -59,7 +59,7 @@ def render_chat_page(settings):
     last_synced = state.get("last_synced_session")
     if last_synced != session_id:
         if workspace_id:
-            db = DatabaseManager()
+            db = get_database()
             state.set("chat_history", db.messages.get_recent(workspace_id, session_id=session_id))
             state.set("last_synced_session", session_id)
 
@@ -71,7 +71,7 @@ def render_chat_page(settings):
             render_empty_chat()
         else:
             i = 0
-            db = DatabaseManager()
+            db = get_database()
             while i < len(chat_history):
                 msg = chat_history[i]
                 next_msg = chat_history[i+1] if i+1 < len(chat_history) else None
