@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, cast
 
 import chromadb
+from chromadb.api import ClientAPI
 from chromadb.api.models.Collection import Collection
 from chromadb.config import Settings
 
-from app.core.config import AppConfig
 from app.core.exceptions import (
     ChromaCollectionError,
     ChromaConnectionError,
@@ -35,12 +35,14 @@ class ChromaManager:
             persist_directory: Local path to store the vector database
         """
         if persist_directory is None:
-            persist_directory = AppConfig().CHROMA_PERSIST_DIR
+            from app.core.container import get_config
+
+            persist_directory = get_config().CHROMA_PERSIST_DIR
         self.persist_directory = persist_directory
-        self._client: chromadb.PersistentClient | None = None
+        self._client: ClientAPI | None = None
 
     @property
-    def client(self) -> chromadb.PersistentClient:
+    def client(self) -> ClientAPI:
         """
         Get or initialize the persistent Chroma client.
 
@@ -126,19 +128,21 @@ class ChromaManager:
         self, workspace_id: str, workspace_name: str
     ) -> Collection | None:
         """
-        Retrieve an existing collection without creating it.
-
-        Args:
-            workspace_id: ID of the workspace
-            workspace_name: Name of the workspace
-
-        Returns:
-            Collection | None: The collection if it exists, else None
+        Retrieve an existing collection with fallback for renamed workspaces.
         """
         collection_name = self.get_collection_name(workspace_id, workspace_name)
         try:
             return self.client.get_collection(name=collection_name)
         except Exception:
+            # Fallback: Search all collections for the workspace_id in metadata
+            try:
+                all_collections = self.client.list_collections()
+                for coll in all_collections:
+                    if coll.metadata and coll.metadata.get("workspace_id") == workspace_id:
+                        logger.info(f"Found collection via metadata fallback: {coll.name}")
+                        return coll
+            except Exception as e:
+                logger.error(f"Fallback collection lookup failed: {e}")
             return None
 
     def delete_collection(self, workspace_id: str, workspace_name: str) -> None:
@@ -207,8 +211,8 @@ class ChromaManager:
             collection.add(
                 ids=ids,
                 documents=chunks,
-                embeddings=embeddings,
-                metadatas=metadatas,
+                embeddings=cast(Any, embeddings),
+                metadatas=cast(Any, metadatas),
             )
             logger.info(
                 f"[Chroma] Added {len(chunks)} chunks to collection {collection.name}"
@@ -275,9 +279,9 @@ class ChromaManager:
             metadatas = (results.get("metadatas") or [[]])[0]
 
             return (
-                documents if documents is not None else [],
-                distances if distances is not None else [],
-                metadatas if metadatas is not None else [],
+                cast(list[str], documents) if documents is not None else [],
+                cast(list[float], distances) if distances is not None else [],
+                cast(list[dict[str, Any]], metadatas) if metadatas is not None else [],
             )
         except Exception as e:
             logger.error(f"Query failed for workspace {workspace_id}: {e}")
@@ -396,6 +400,10 @@ class EmbeddingManager:
                 return OllamaEmbeddings(
                     model=self.ollama_model, base_url=self.ollama_url
                 )
+        except ImportError as e:
+            msg = f"Gerekli kütüphane bulunamadı: {str(e)}. Lütfen 'pip install langchain-huggingface' veya 'pip install langchain-ollama' komutlarını çalıştırın."
+            logger.error(msg)
+            raise EmbeddingError(msg)
         except Exception as e:
             logger.error(f"Failed to initialize embedding model: {e}")
             raise EmbeddingError(f"Embedding initialization failed: {e}")

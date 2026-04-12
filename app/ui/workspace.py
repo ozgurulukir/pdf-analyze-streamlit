@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import streamlit as st
 
-from app.core.models import FileMetadata, Job, Workspace
+from app.core.models import FileMetadata, Workspace
 
 
 def render_workspace_selector(
@@ -153,7 +153,7 @@ def render_file_list(
             render_file_card(file, on_delete, on_revectorize, on_preview)
 
 
-def render_upload_zone(on_upload: Callable, allowed_types: list[str] = None):
+def render_upload_zone(on_upload: Callable, allowed_types: list[str] | None = None):
     """Render file upload zone."""
     st.markdown("### 📤 Dosya Yükle")
 
@@ -179,28 +179,7 @@ def render_upload_zone(on_upload: Callable, allowed_types: list[str] = None):
     return None
 
 
-def render_job_progress(job: Job):
-    """Render job progress bar."""
-    if job.status in ("pending", "running"):
-        st.progress(job.progress / 100, text=f"{job.status}... {job.progress:.0f}%")
-    elif job.status == "completed":
-        st.success("✅ Tamamlandı")
-    elif job.status == "failed":
-        st.error(f"❌ Başarısız: {job.error_message}")
-
-
-def render_active_jobs(jobs: list[Job]):
-    """Render active jobs in workspace."""
-    if not jobs:
-        return
-
-    st.markdown("### ⚙️ İşlemler")
-
-    for job in jobs:
-        with st.expander(
-            f"{'🔄' if job.status == 'running' else '⏳'} {job.job_type} - {job.progress:.0f}%"
-        ):
-            render_job_progress(job)
+# Redundant progress rendering removed in favor of Global Header Progress Tracker
 
 
 def render_workspace_modal(

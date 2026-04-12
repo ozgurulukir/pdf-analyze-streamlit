@@ -1,7 +1,6 @@
 """Application configuration and settings."""
 
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import requests
@@ -13,6 +12,7 @@ load_dotenv()
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 @dataclass
 class OllamaModel:
@@ -147,6 +147,26 @@ class AppConfig(BaseSettings):
     @model_validator(mode="after")
     def validate_paths_and_config(self) -> "AppConfig":
         """Initialize paths and validate configuration."""
+        # Force absolute paths relative to project root (parent of app/ folder)
+        project_root = Path(__file__).parent.parent.parent.absolute()
+
+        # Ensure DATA_DIR is absolute
+        if not Path(self.DATA_DIR).is_absolute():
+            data_path = project_root / self.DATA_DIR
+            self.DATA_DIR = str(data_path)
+        else:
+            data_path = Path(self.DATA_DIR)
+
+        data_path.mkdir(parents=True, exist_ok=True)
+
+        # Resolve DB_PATH if relative
+        if not Path(self.DB_PATH).is_absolute():
+            self.DB_PATH = str(data_path / Path(self.DB_PATH).name)
+
+        # Resolve CHROMA_PERSIST_DIR if relative
+        if not Path(self.CHROMA_PERSIST_DIR).is_absolute():
+            self.CHROMA_PERSIST_DIR = str(data_path / "chroma")
+
         # Create directories
         Path(self.DB_PATH).parent.mkdir(parents=True, exist_ok=True)
         Path(self.CHROMA_PERSIST_DIR).mkdir(parents=True, exist_ok=True)
@@ -159,6 +179,45 @@ class AppConfig(BaseSettings):
         if self.RATE_LIMIT_RPM <= 0:
             raise ValueError("RATE_LIMIT_RPM must be positive")
         return self
+
+    def sync_with_db(self, config_dict: dict) -> None:
+        """
+        Merge configuration from database preferences.
+
+        Args:
+            config_dict: Key-value pairs from UserPreferences.config
+        """
+        from app.core.constants import SessionKeys
+
+        key_map = {
+            SessionKeys.LLM_MODEL.value: "LLM_MODEL",
+            SessionKeys.LLM_BASE_URL.value: "LLM_BASE_URL",
+            SessionKeys.OLLAMA_API_KEY.value: "OLLAMA_API_KEY",
+            SessionKeys.LLM_TEMPERATURE.value: "LLM_TEMPERATURE",
+            SessionKeys.USE_HUGGINGFACE.value: "USE_HUGGINGFACE",
+            SessionKeys.EMBED_MODEL.value: "EMBED_MODEL",
+            SessionKeys.OLLAMA_URL.value: "OLLAMA_BASE_URL",
+            SessionKeys.HF_EMBED_MODEL.value: "HF_EMBED_MODEL",
+            SessionKeys.DATA_DIR.value: "DATA_DIR",
+            SessionKeys.CHROMA_PATH.value: "CHROMA_PERSIST_DIR",
+            SessionKeys.CHUNK_SIZE.value: "CHUNK_SIZE",
+            SessionKeys.CHUNK_OVERLAP.value: "CHUNK_OVERLAP",
+        }
+
+        # Update attributes directly
+        for session_key, attr_name in key_map.items():
+            if session_key in config_dict and config_dict[session_key] is not None:
+                val = config_dict[session_key]
+                # Type conversion for numeric fields
+                if attr_name in ["LLM_TEMPERATURE", "CHUNK_SIZE", "CHUNK_OVERLAP"]:
+                    try:
+                        val = float(val) if "TEMPERATURE" in attr_name else int(val)
+                    except (ValueError, TypeError):
+                        continue
+                setattr(self, attr_name, val)
+
+        # Re-resolve paths
+        self.validate_paths_and_config()
 
     def is_production(self) -> bool:
         return self.APP_ENV.lower() == "production"

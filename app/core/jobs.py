@@ -7,8 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
-from app.core.config import AppConfig
-from app.core.config import AppConfig
 from app.core.constants import ProcessingStatus
 from app.core.database import DatabaseManager
 from app.core.models import Job
@@ -22,7 +20,9 @@ class JobQueue:
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
-        self._db = DatabaseManager()
+        from app.core.container import get_database
+
+        self._db = get_database()
 
     def submit_job(
         self,
@@ -245,10 +245,14 @@ class EmbeddingWorker:
                         )
 
                 # Update file status
-                file_meta.status = ProcessingStatus.PROCESSED
+                file_meta.status = ProcessingStatus.PROCESSED.value
                 file_meta.chunk_count = chunks_count
                 file_meta.processed_at = datetime.now()
                 db.files.update(file_meta)
+
+                # Invalidate cache so UI sees the change
+                from app.core.cache import invalidate_file_cache
+                invalidate_file_cache(workspace_id)
 
                 results["success"].append(file_meta.id)
 
@@ -266,6 +270,18 @@ class EmbeddingWorker:
         # Final progress update
         if progress_callback:
             progress_callback(total_files, total_files, "Tamamlandı")
+
+        # Update workspace file count finally to be sure
+        try:
+            workspace = db.workspaces.get_by_id(workspace_id)
+            if workspace:
+                workspace.file_count = db.files.count_by_workspace(workspace_id)
+                workspace.last_modified = datetime.now()
+                db.workspaces.update(workspace)
+                from app.core.cache import invalidate_workspace_cache
+                invalidate_workspace_cache(workspace_id)
+        except Exception as ws_err:
+            logger.error(f"Failed to final update workspace {workspace_id}: {ws_err}")
 
         return results
 
@@ -299,7 +315,9 @@ def create_embedding_job(
         embedding_settings.get("chunk_overlap") if embedding_settings else None
     )
 
-    config = AppConfig()
+    from app.core.container import get_config
+
+    config = get_config()
 
     chunk_size = ui_chunk_size or config.CHUNK_SIZE
     chunk_overlap = ui_chunk_overlap or config.CHUNK_OVERLAP

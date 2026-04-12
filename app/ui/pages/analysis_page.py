@@ -7,30 +7,15 @@ from app.core.constants import SessionKeys
 from app.core.logger import logger
 
 
-def render_qa_card(qa, on_like, on_dislike):
-    """Render a single Q&A card using native border container."""
-    with st.container(border=True):
-        st.markdown(f"**❓ Soru:** {qa.content if hasattr(qa, 'content') else 'N/A'}")
-        with st.expander("💡 Cevabı Gör"):
-            st.markdown(qa.answer if hasattr(qa, "answer") else "Cevap yok.")
-            if hasattr(qa, "sources") and qa.sources:
-                st.caption(f"Kaynaklar: {', '.join(qa.sources)}")
-
-        col1, col2, _ = st.columns([1, 1, 4])
-        with col1:
-            st.button("👍", key=f"like_{id(qa)}")
-        with col2:
-            st.button("👎", key=f"dislike_{id(qa)}")
-
-
 def render_preference_adjuster(preferences):
     """Render preference adjustment panel."""
+    L = st.session_state.locale
     if preferences is None:
-        st.info("Kullanıcı tercihleri yüklenemedi. Lütfen sayfayı yenileyin.")
+        st.info(L.analysis.no_data)
         return
 
-    st.markdown("### ⚖️ Tercihlerinizi Ayarlayın")
-    st.caption("Cevap tarzınızı özelleştirin")
+    st.markdown(f"### {L.analysis.pref_title}")
+    st.caption(L.analysis.pref_subtitle)
 
     if not hasattr(preferences, "weights"):
         preferences.weights = {
@@ -40,48 +25,61 @@ def render_preference_adjuster(preferences):
             "step_by_step": 0.5,
         }
 
+
+    def save_weight_change(tag_to_update):
+        db = DatabaseManager()
+        is_active = st.session_state[f"pref_{tag_to_update}"]
+
+        # Çelişki kontrolü (Mutual Exclusion): Concise vs Detailed
+        if is_active:
+            if tag_to_update == "concise":
+                if preferences.weights.get("detailed", 0) > 0.5:
+                    db.preferences.update_weights({"detailed": 0.0})
+                    preferences.weights["detailed"] = 0.0
+                    st.session_state["pref_detailed"] = False # Session state'i de güncelle!
+                    st.toast("⚠️ Detaylı anlatım kapatıldı (Çelişki önlendi).")
+            elif tag_to_update == "detailed":
+                if preferences.weights.get("concise", 0) > 0.5:
+                    db.preferences.update_weights({"concise": 0.0})
+                    preferences.weights["concise"] = 0.0
+                    st.session_state["pref_concise"] = False # Session state'i de güncelle!
+                    st.toast("⚠️ Kısa yanıt kapatıldı (Çelişki önlendi).")
+
+        new_val = 1.0 if is_active else 0.0
+        preferences.weights[tag_to_update] = new_val
+        # DB'ye kaydet
+        db.preferences.update_weights({tag_to_update: new_val})
+        status_label = L.common.active_label if is_active else L.common.passive_label
+        st.toast(f"ℹ️ {tag_to_update.replace('_', ' ').title()} {status_label}.")
+
+        # Eğer bir çelişki çözüldüyse, diğer toggle'ın görsel olarak kapanması için sayfayı yenile
+        st.rerun()
+
     for tag, weight in preferences.weights.items():
-        st.slider(
+        st.toggle(
             tag.replace("_", " ").title(),
-            min_value=0.0,
-            max_value=1.0,
-            value=float(weight),
-            step=0.1,
+            value=bool(weight > 0.5),
             key=f"pref_{tag}",
+            on_change=save_weight_change,
+            args=(tag,)
         )
 
 
 def render_analysis_page():
-    """Render the analysis dashboard page with modern UI."""
-    # Page Header
-    st.markdown(
-        """
-    <div style="
-        display: flex; align-items: center; gap: 14px;
-        padding: 1.25rem 1.5rem;
-        background: rgba(99, 102, 241, 0.05);
-        border: 1px solid rgba(99, 102, 241, 0.15);
-        border-radius: 14px; margin-bottom: 1.5rem;
-    ">
-        <div style="
-            width: 44px; height: 44px;
-            background: linear-gradient(135deg, #6366f1, #7c3aed);
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.4rem; flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(99,102,241,0.3);
-        ">📊</div>
-        <div>
-            <div style="font-size: 1.05rem; font-weight: 700; color: #e0e7ff; letter-spacing: -0.02em;">Veri Analiz Paneli</div>
-            <div style="font-size: 0.78rem; color: #64748b; margin-top: 1px;">Çalışma alanı istatistikleri ve geçmiş sorgular</div>
-        </div>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """Render the analysis dashboard page with modern native UI."""
+    L = st.session_state.locale
+    # Page Header using native components
+    with st.container(border=True):
+        col_icon, col_text = st.columns([1, 8])
+        col_icon.markdown("# 📊")
+        with col_text:
+            st.subheader(L.analysis.title)
+            st.caption(L.analysis.header_caption)
 
     try:
-        db = DatabaseManager()
+        from app.core.container import get_database
+
+        db = get_database()
     except Exception as e:
         from app.core.exceptions import DatabaseError
         if isinstance(e, DatabaseError):
@@ -99,15 +97,17 @@ def render_analysis_page():
             files = []
         processed_count = len([f for f in files if f.status == "processed"])
 
+        # Statistics Grid
         with st.container(border=True):
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Toplam Belge", len(files))
-            col2.metric("İşlenen", processed_count)
-            col3.metric("Kuyrukta", len(files) - processed_count)
+            st.caption(f"📈 {L.library.stats_label}")
+            m_col1, m_col2, m_col3 = st.columns(3)
+            m_col1.metric(L.analysis.total_docs, len(files))
+            m_col2.metric(L.analysis.processed, processed_count, delta=f"{processed_count/len(files):.0%}" if files else "0%")
+            m_col3.metric(L.analysis.queued, len(files) - processed_count)
 
         st.divider()
 
-        tab1, tab2 = st.tabs(["📈 İstatistikler", "🎯 Tercihler & Geçmiş"])
+        tab1, tab2 = st.tabs([L.analysis.stats_tab, L.analysis.pref_tab])
 
         with tab1:
             st.markdown("### 📈 Workspace İstatistikleri")
@@ -116,34 +116,25 @@ def render_analysis_page():
                 sources = list({f.original_name for f in files})
 
                 with st.container(border=True):
+                    st.caption("📋 Detaylı Boyut Analizi")
                     c1, c2, c3 = st.columns(3)
-                    c1.metric("📄 Toplam Belge", total_docs)
-                    c2.metric("📝 Özgün Kaynaklar", len(sources))
+                    c1.metric(L.analysis.total_docs, total_docs)
+                    c2.metric(L.analysis.unique_sources, len(sources))
                     c3.metric(
-                        "💾 Ortalama Boyut",
+                        L.analysis.avg_size,
                         f"{sum(f.size for f in files) / (total_docs * 1024):.1f} KB"
                         if total_docs > 0
                         else "0 KB",
                     )
 
-                with st.expander("📋 Kaynak Dosya Listesi"):
+                with st.expander(L.chat.sources_title):
                     for source in sources:
                         st.write(f"- {source}")
             else:
-                st.info("İstatistik gösterilecek belge bulunamadı.")
+                st.info(L.analysis.no_data)
 
         with tab2:
             prefs = st.session_state.get(SessionKeys.PREFERENCES.value)
             render_preference_adjuster(prefs)
-            st.divider()
-            st.markdown("### 💬 Son Soru-Cevaplar")
-
-            chat_hist = st.session_state.get(SessionKeys.CHAT_HISTORY.value)
-            if chat_hist:
-                for msg in chat_hist:
-                    if hasattr(msg, "role") and msg.role == "assistant":
-                        render_qa_card(msg, None, None)
-            else:
-                st.info("Henüz geçmiş bulunmuyor.")
     else:
-        st.warning("Lütfen sidebar'dan bir çalışma alanı seçin.")
+        st.warning(L.workspace.no_active)

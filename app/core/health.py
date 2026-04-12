@@ -7,7 +7,6 @@ from typing import Any
 
 import requests
 
-from app.core.config import AppConfig
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -48,7 +47,9 @@ class HealthChecker:
 
     def __init__(self):
         """Initialize the health checker."""
-        self.config = AppConfig()
+        from app.core.container import get_config
+
+        self.config = get_config()
         self._checks: dict[str, callable] = {}
 
     def check_database(self) -> HealthCheckResult:
@@ -61,8 +62,9 @@ class HealthChecker:
         start_time = time.time()
 
         try:
-            from app.core.database import DatabaseManager
-            db = DatabaseManager()
+            from app.core.container import get_database
+
+            db = get_database()
             # Simple query to test connection
             workspaces = db.workspaces.get_all()
             response_time = (time.time() - start_time) * 1000
@@ -149,9 +151,9 @@ class HealthChecker:
         start_time = time.time()
 
         try:
-            from app.core.chroma import ChromaManager
+            from app.core.container import get_chroma
 
-            chroma = ChromaManager()
+            chroma = get_chroma()
             collections = chroma.get_collections()
 
             response_time = (time.time() - start_time) * 1000

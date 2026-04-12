@@ -197,39 +197,51 @@ class AppContainer(Container):
         if self._configured:
             return
 
-        # Core configuration
-        self.register(AppConfig, singleton=True)
+        # 1. Core configuration (Default)
+        config = AppConfig()
+        self.register_instance(AppConfig, config)
 
-        # Database
+        # 2. Database
         from app.core.database import DatabaseManager
 
-        self.register(DatabaseManager, singleton=True)
+        db = DatabaseManager(config.DB_PATH)
+        self.register_instance(DatabaseManager, db)
 
-        # Chroma
+        # 3. Sync Config from DB (Bridge the gap)
+        try:
+            prefs = db.preferences.get()
+            if prefs and prefs.config:
+                config.sync_with_db(prefs.config)
+                logger.info("AppConfig synchronized with DB preferences")
+        except Exception as e:
+            logger.warning(f"Could not sync AppConfig with DB: {e}")
+
+        # 4. Chroma
         from app.core.chroma import ChromaManager, EmbeddingManager
 
+        # Re-initialize managers with potentially updated config
         self.register(ChromaManager, singleton=True)
         self.register(EmbeddingManager, singleton=True)
 
-        # Jobs
+        # 5. Jobs
         from app.core.jobs import JobQueue
 
         self.register(JobQueue, singleton=True)
 
-        # Services
+        # 6. Services
         from app.core.services.chat_service import ChatService
         from app.core.services.file_service import FileService
 
         self.register(ChatService, singleton=False)
         self.register(FileService, singleton=False)
 
-        # Health
+        # 7. Health
         from app.core.health import HealthChecker
 
         self.register(HealthChecker, singleton=True)
 
         self._configured = True
-        logger.info("Application container configured")
+        logger.info("Application container configured and synchronized")
 
     def get_config(self) -> AppConfig:
         """Get application configuration."""
@@ -252,6 +264,11 @@ class AppContainer(Container):
         from app.core.chroma import EmbeddingManager
 
         return self.resolve(EmbeddingManager)
+
+    def get_rag_chain(self, **kwargs) -> Any:
+        """Get a fresh RAG orchestrator instance with provided context."""
+        from app.core.rag import RAGChain
+        return RAGChain(**kwargs)
 
 
 # ===================
@@ -306,3 +323,13 @@ def get_database() -> Any:
 def get_chroma() -> Any:
     """Get ChromaDB manager (service locator)."""
     return get_container().get_chroma()
+
+
+def get_rag_chain(**kwargs) -> Any:
+    """Get RAG orchestrator (service locator)."""
+    return get_container().get_rag_chain(**kwargs)
+
+
+def get_embedding_manager() -> Any:
+    """Get embedding manager (service locator)."""
+    return get_container().get_embedding_manager()

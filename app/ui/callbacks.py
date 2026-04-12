@@ -2,7 +2,7 @@ from datetime import datetime
 
 import streamlit as st
 
-from app.core import Workspace
+from app.core import ChatSession, Workspace
 from app.core.cache import (
     cached_get_messages,
     cached_get_workspace_files,
@@ -18,6 +18,12 @@ from app.core.constants import SessionKeys
 from app.core.exceptions import ChromaError, DatabaseError
 from app.core.logger import logger
 from app.core.services.file_service import FileService
+
+
+def add_alert(message: str, type: str = "info") -> None:
+    """Queue a pure st.toast message for the next rerun."""
+    icons = {"success": "✅", "error": "❌", "warning": "⚠️", "info": "ℹ️"}
+    st.session_state["pending_toast"] = (message, icons.get(type, "ℹ️"))
 
 
 def load_workspaces() -> None:
@@ -59,10 +65,12 @@ def create_workspace_callback(name: str) -> None:
         invalidate_workspace_cache(workspace.id)
 
         load_workspaces()
-        st.success(f"Çalışma alanı oluşturuldu: {name}")
+        add_alert(f"Çalışma alanı oluşturuldu: {name}", "success")
+        st.rerun()
     except (DatabaseError, ChromaError) as e:
         logger.error(f"Workspace creation error: {e}")
-        st.error(f"Çalışma alanı oluşturulamadı: {str(e)}")
+        add_alert(f"Çalışma alanı oluşturulamadı: {str(e)}", "error")
+        st.rerun()
     except Exception as e:
         logger.critical(f"Unexpected error creating workspace: {e}")
         st.error("Beklenmedik bir hata oluştu.")
@@ -74,6 +82,8 @@ def select_workspace_callback(workspace_id: str) -> None:
         db = get_cached_database_manager()
         db.workspaces.set_active(workspace_id)
         st.session_state[SessionKeys.ACTIVE_WORKSPACE_ID.value] = workspace_id
+        # Reset current session when switching workspaces
+        st.session_state[SessionKeys.ACTIVE_SESSION_ID.value] = None
         st.rerun()
     except Exception as e:
         logger.error(f"Failed to select workspace {workspace_id}: {e}")
@@ -124,10 +134,12 @@ def delete_workspace_callback(workspace_id: str) -> None:
                 st.session_state[SessionKeys.ACTIVE_WORKSPACE_ID.value] = None
 
             load_workspaces()
-            st.success("Çalışma alanı silindi.")
+            add_alert("Çalışma alanı silindi.", "success")
+            st.rerun()
     except Exception as e:
         logger.error(f"Failed to delete workspace {workspace_id}: {e}")
-        st.error("Çalışma alanı silinirken hata oluştu.")
+        add_alert("Çalışma alanı silinirken hata oluştu.", "error")
+        st.rerun()
 
 
 def upload_files_callback(
@@ -147,9 +159,9 @@ def upload_files_callback(
             )
 
             for err in errors:
-                st.warning(err)
+                add_alert(err, "warning")
             for msg in successes:
-                st.success(msg)
+                add_alert(msg, "success")
 
         if added_count > 0:
             # Invalidate file cache for this workspace
@@ -157,7 +169,8 @@ def upload_files_callback(
             load_workspaces()
             st.rerun()
     except Exception as e:
-        st.error(f"Dosya yükleme işlemi başarısız oldu: {str(e)}")
+        add_alert(f"Dosya yükleme işlemi başarısız oldu: {str(e)}", "error")
+        st.rerun()
 
 
 def delete_file_callback(file_id: str) -> None:
@@ -175,10 +188,12 @@ def delete_file_callback(file_id: str) -> None:
         invalidate_file_cache(active_ws_id, file_id)
 
         load_workspaces()
+        add_alert("Dosya silindi.", "success")
         st.rerun()
     except Exception as e:
         logger.error(f"Failed to delete file {file_id}: {e}")
-        st.error("Dosya silinemedi.")
+        add_alert("Dosya silinemedi.", "error")
+        st.rerun()
 
 
 def process_directory_callback(directory_path: str, workspace: Workspace) -> None:
@@ -208,9 +223,9 @@ def process_directory_callback(directory_path: str, workspace: Workspace) -> Non
             )
 
             for err in errors:
-                st.error(err)
+                add_alert(err, "error")
             for msg in successes:
-                st.success(msg)
+                add_alert(msg, "success")
 
         if added_count > 0:
             # Invalidate file cache
@@ -219,7 +234,8 @@ def process_directory_callback(directory_path: str, workspace: Workspace) -> Non
             st.rerun()
     except Exception as e:
         logger.error(f"Directory processing callback failure: {e}")
-        st.error("Dizin işleme hatası.")
+        add_alert("Dizin işleme hatası.", "error")
+        st.rerun()
 
 
 def reset_system_callback() -> None:
@@ -240,29 +256,42 @@ def reset_system_callback() -> None:
         db = get_cached_database_manager()
         db.reset_system()
 
-        # 4. Clear session state comprehensively
+        # 4. Reset global config singleton to defaults
+        from app.core.container import get_config
+        config_obj = get_config()
+        default_config = AppConfig()
+        config_obj.DATA_DIR = default_config.DATA_DIR
+        config_obj.CHROMA_PERSIST_DIR = default_config.CHROMA_PERSIST_DIR
+        config_obj.validate_paths_and_config() # Re-resolve absolute paths
+        logger.info("Global AppConfig paths reset to defaults")
+
+        # 5. Clear session state comprehensively
         keys_to_reset = [
             SessionKeys.ACTIVE_WORKSPACE_ID.value,
+            SessionKeys.ACTIVE_SESSION_ID.value,
             SessionKeys.CHAT_HISTORY.value,
             SessionKeys.WORKSPACES.value,
             SessionKeys.PREFERENCES.value,
             SessionKeys.CURRENT_PAGE.value,
+            SessionKeys.DATA_DIR.value,
+            SessionKeys.CHROMA_PATH.value,
         ]
 
         for key in keys_to_reset:
             if key in st.session_state:
                 del st.session_state[key]
 
-        st.success("Tüm sistem başarıyla sıfırlandı!")
+        add_alert("Tüm sistem başarıyla sıfırlandı!", "success")
         load_workspaces()
         st.rerun()
     except Exception as e:
         logger.error(f"System reset failure: {e}")
-        st.error("Sistem sıfırlanırken kritik bir hata oluştu.")
+        add_alert("Sistem sıfırlanırken kritik bir hata oluştu.", "error")
+        st.rerun()
 
 
 def clear_chat_history_callback(workspace_id: str) -> None:
-    """Clear chat history for a workspace."""
+    """Clear chat history for a workspace and reset UI state."""
     try:
         db = get_cached_database_manager()
         db.messages.clear_by_workspace(workspace_id)
@@ -270,11 +299,66 @@ def clear_chat_history_callback(workspace_id: str) -> None:
         # Invalidate message cache
         cached_get_messages.clear(workspace_id)
 
+        # Sync session state to reflect changes in UI immediately
+        if SessionKeys.CHAT_HISTORY.value in st.session_state:
+            st.session_state[SessionKeys.CHAT_HISTORY.value] = []
+
         st.success("Sohbet geçmişi temizlendi!")
         st.rerun()
     except Exception as e:
         logger.error(f"Failed to clear chat history: {e}")
         st.error("Sohbet geçmişi temizlenemedi.")
+
+
+def create_chat_session_callback(workspace_id: str, title: str = "Yeni Sohbet") -> None:
+    """Create a new chat session for a workspace."""
+    try:
+        db = get_cached_database_manager()
+        session = ChatSession(workspace_id=workspace_id, title=title)
+        db.chat_sessions.create(session)
+        st.session_state[SessionKeys.ACTIVE_SESSION_ID.value] = session.id
+        st.success(f"Yeni sohbet başlatıldı: {title}")
+        st.rerun()
+    except Exception as e:
+        logger.error(f"Failed to create chat session: {e}")
+        st.error("Yeni sohbet başlatılamadı.")
+
+
+def select_chat_session_callback(session_id: str | None) -> None:
+    """Switch the active chat session."""
+    st.session_state[SessionKeys.ACTIVE_SESSION_ID.value] = session_id
+    st.rerun()
+
+
+def rename_chat_session_callback(session_id: str, new_title: str) -> None:
+    """Rename an existing chat session."""
+    if not new_title.strip():
+        return
+    try:
+        db = get_cached_database_manager()
+        session = db.chat_sessions.get_by_id(session_id)
+        if session:
+            session.title = new_title
+            db.chat_sessions.update(session)
+            st.success("Sohbet başlığı güncellendi.")
+            st.rerun()
+    except Exception as e:
+        logger.error(f"Failed to rename chat session: {e}")
+        st.error("Sohbet başlığı değiştirilemedi.")
+
+
+def delete_chat_session_callback(session_id: str) -> None:
+    """Delete a chat session."""
+    try:
+        db = get_cached_database_manager()
+        db.chat_sessions.delete(session_id)
+        if st.session_state.get(SessionKeys.ACTIVE_SESSION_ID.value) == session_id:
+            st.session_state[SessionKeys.ACTIVE_SESSION_ID.value] = None
+        st.success("Sohbet oturumu silindi.")
+        st.rerun()
+    except Exception as e:
+        logger.error(f"Failed to delete chat session: {e}")
+        st.error("Sohbet oturumu silinemedi.")
 
 
 def save_settings_callback() -> None:
@@ -317,6 +401,11 @@ def save_settings_callback() -> None:
         prefs.updated_at = datetime.now()
         db.preferences.save(prefs)
 
+        # Update live config singleton so background services see the change immediately
+        from app.core.container import get_config
+        get_config().sync_with_db(new_config)
+        logger.info("Live AppConfig synced after settings update")
+
         # Invalidate embedding cache if settings changed
         new_use_hf = new_config.get(SessionKeys.USE_HUGGINGFACE.value, False)
         new_embed_model = new_config.get(
@@ -354,14 +443,26 @@ def get_cached_files(workspace_id: str) -> list:
         if isinstance(f, dict):
             # Safe parsing for FileMetadata with fixed types
             uploaded_raw = f.get("uploaded_at")
-            uploaded_at: datetime = (
-                uploaded_raw if isinstance(uploaded_raw, datetime) else datetime.now()
-            )
+            if isinstance(uploaded_raw, datetime):
+                uploaded_at = uploaded_raw
+            elif isinstance(uploaded_raw, str):
+                try:
+                    uploaded_at = datetime.fromisoformat(uploaded_raw)
+                except ValueError:
+                    uploaded_at = datetime.now()
+            else:
+                uploaded_at = datetime.now()
 
             processed_raw = f.get("processed_at")
-            processed_at: datetime | None = (
-                processed_raw if isinstance(processed_raw, datetime) else None
-            )
+            if isinstance(processed_raw, datetime):
+                processed_at = processed_raw
+            elif isinstance(processed_raw, str):
+                try:
+                    processed_at = datetime.fromisoformat(processed_raw)
+                except ValueError:
+                    processed_at = None
+            else:
+                processed_at = None
 
             file_obj = FileMetadata(
                 id=str(f.get("id", "")),

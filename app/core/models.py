@@ -173,6 +173,7 @@ class MessageModel(BaseModel):
     content: str = Field(min_length=0, max_length=50000)
     timestamp: datetime = Field(default_factory=now)
     workspace_id: str | None = None
+    session_id: str | None = None
     sources: list[dict[str, Any]] | None = Field(default_factory=list)
     is_summarized: bool = Field(default=False)
 
@@ -205,6 +206,29 @@ class MessageModel(BaseModel):
         return cls(**data)
 
 
+class ChatSessionModel(BaseModel):
+    """
+    Model for a chat session/thread within a workspace.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    id: str = Field(default_factory=generate_id)
+    workspace_id: str = Field(min_length=1)
+    title: str = Field(default="Yeni Sohbet", max_length=255)
+    created_at: datetime = Field(default_factory=now)
+    last_message_at: datetime = Field(default_factory=now)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert model to dictionary."""
+        return self.model_dump()
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ChatSessionModel":
+        """Create model from dictionary."""
+        return cls(**data)
+
+
 class QAPairModel(BaseModel):
     """
     Q&A pair model for extracted questions and answers.
@@ -220,6 +244,7 @@ class QAPairModel(BaseModel):
     created_at: datetime = Field(default_factory=now)
     likes: int = Field(ge=0, default=0)
     dislikes: int = Field(ge=0, default=0)
+    tags: list[str] = Field(default_factory=list)
 
     @field_validator("question")
     @classmethod
@@ -451,6 +476,7 @@ class Message:
     content: str = ""
     timestamp: datetime = field(default_factory=now)
     workspace_id: str | None = None
+    session_id: str | None = None
     sources: list[dict[str, Any]] | None = field(default_factory=list)
     is_summarized: bool = False
 
@@ -459,18 +485,26 @@ class Message:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Message":
-        """Create model from dictionary, handling JSON string fields."""
         processed_data = data.copy()
-
-        # Handle sources field (stored as string in DB)
-        if "sources" in processed_data and processed_data["sources"]:
-            if isinstance(processed_data["sources"], str):
-                try:
-                    processed_data["sources"] = json.loads(processed_data["sources"])
-                except (json.JSONDecodeError, TypeError):
-                    processed_data["sources"] = []
-
         return cls(**MessageModel(**processed_data).model_dump())
+
+
+@dataclass
+class ChatSession:
+    """Legacy chat session model."""
+
+    id: str = field(default_factory=generate_id)
+    workspace_id: str = ""
+    title: str = "Yeni Sohbet"
+    created_at: datetime = field(default_factory=now)
+    last_message_at: datetime = field(default_factory=now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return ChatSessionModel.model_validate(self).to_dict()
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ChatSession":
+        return cls(**ChatSessionModel(**data).model_dump())
 
 
 @dataclass
@@ -485,6 +519,7 @@ class QAPair:
     created_at: datetime = field(default_factory=now)
     likes: int = 0
     dislikes: int = 0
+    tags: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return QAPairModel.model_validate(self).to_dict()

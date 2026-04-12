@@ -3,7 +3,7 @@
 import streamlit as st
 
 from app.ui.callbacks import reset_system_callback
-from app.ui.sidebar import (
+from app.ui.settings_components import (
     render_data_settings,
     render_embedding_settings,
     render_llm_settings,

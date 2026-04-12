@@ -65,6 +65,7 @@ from app.core.health import HealthChecker, HealthCheckResult, get_health_checker
 from app.core.jobs import EmbeddingWorker, JobQueue, create_embedding_job, get_job_queue
 from app.core.loader import DocumentLoader
 from app.core.models import (
+    ChatSession,
     ChunkMetadata,
     FileMetadata,
     Job,
@@ -75,7 +76,6 @@ from app.core.models import (
 )
 from app.core.rag import MessageCache, PromptTemplates, QAManager, RAGChain, create_llm
 from app.core.router import PageRouter, resolve_page
-
 
 __all__ = [
     # Chroma
@@ -151,6 +151,7 @@ __all__ = [
     "QAPair",
     "UserPreferences",
     "Workspace",
+    "ChatSession",
     # RAG
     "MessageCache",
     "PromptTemplates",

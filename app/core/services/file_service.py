@@ -186,7 +186,7 @@ class FileService:
                         original_name=original_name,
                         file_type=original_name.split(".")[-1].lower(),
                         size=len(doc.page_content),
-                        status="pending",
+                        status=ProcessingStatus.PENDING.value,
                     )
                     self.db.files.create(file_meta)
 

@@ -6,8 +6,9 @@ from datetime import datetime
 from typing import Any
 
 from app.core.exceptions import DatabaseQueryError
-from app.core.logger import get_logger
+from app.core.logger import logger
 from app.core.models import (
+    ChatSession,
     ChunkMetadata,
     FileMetadata,
     Job,
@@ -17,6 +18,7 @@ from app.core.models import (
     Workspace,
 )
 from app.core.repositories.interfaces import (
+    ChatSessionRepository,
     ChunkRepository,
     FileRepository,
     JobRepository,
@@ -25,9 +27,6 @@ from app.core.repositories.interfaces import (
     QARepository,
     WorkspaceRepository,
 )
-
-from app.core.logger import logger
-
 
 # Ensure logger is initialized for this module
 _log = logger
@@ -341,8 +340,8 @@ class SQLiteMessageRepository(MessageRepository):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO messages (id, role, content, timestamp, workspace_id, sources, is_summarized)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO messages (id, role, content, timestamp, workspace_id, session_id, sources, is_summarized)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         message.id,
@@ -350,6 +349,7 @@ class SQLiteMessageRepository(MessageRepository):
                         message.content,
                         message.timestamp.isoformat(),
                         message.workspace_id,
+                        message.session_id,
                         json.dumps(message.sources) if message.sources else None,
                         1 if message.is_summarized else 0,
                     ),
@@ -371,26 +371,37 @@ class SQLiteMessageRepository(MessageRepository):
             raise DatabaseQueryError(f"Failed to get message: {e}")
 
     def get_by_workspace(
-        self, workspace_id: str, limit: int = 100, offset: int = 0
+        self, workspace_id: str, limit: int = 100, offset: int = 0, session_id: str | None = None
     ) -> list[Message]:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT * FROM messages
-                    WHERE workspace_id = ?
-                    ORDER BY timestamp DESC
-                    LIMIT ? OFFSET ?
-                """,
-                    (workspace_id, limit, offset),
-                )
+                if session_id:
+                    cursor.execute(
+                        """
+                        SELECT * FROM messages
+                        WHERE workspace_id = ? AND session_id = ?
+                        ORDER BY timestamp DESC
+                        LIMIT ? OFFSET ?
+                    """,
+                        (workspace_id, session_id, limit, offset),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT * FROM messages
+                        WHERE workspace_id = ? AND session_id IS NULL
+                        ORDER BY timestamp DESC
+                        LIMIT ? OFFSET ?
+                    """,
+                        (workspace_id, limit, offset),
+                    )
                 return [self._row_to_message(row) for row in cursor.fetchall()]
         except sqlite3.Error as e:
             raise DatabaseQueryError(f"Failed to get messages: {e}")
 
-    def get_recent(self, workspace_id: str, limit: int = 50) -> list[Message]:
-        messages = self.get_by_workspace(workspace_id, limit)
+    def get_recent(self, workspace_id: str, limit: int = 50, session_id: str | None = None) -> list[Message]:
+        messages = self.get_by_workspace(workspace_id, limit, session_id=session_id)
         return list(reversed(messages))
 
     def update(self, message: Message) -> Message:
@@ -454,8 +465,97 @@ class SQLiteMessageRepository(MessageRepository):
             content=row["content"],
             timestamp=datetime.fromisoformat(row["timestamp"]),
             workspace_id=row["workspace_id"],
+            session_id=row["session_id"] if "session_id" in row.keys() else None,
             sources=json.loads(row["sources"]) if row["sources"] else [],
             is_summarized=bool(row["is_summarized"]),
+        )
+
+
+class SQLiteChatSessionRepository(ChatSessionRepository):
+    """SQLite implementation of ChatSessionRepository."""
+
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+
+    def create(self, session: ChatSession) -> ChatSession:
+        try:
+            with SQLiteConnection(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO chat_sessions (id, workspace_id, title, created_at, last_message_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """,
+                    (
+                        session.id,
+                        session.workspace_id,
+                        session.title,
+                        session.created_at.isoformat(),
+                        session.last_message_at.isoformat(),
+                    ),
+                )
+                return session
+        except sqlite3.Error as e:
+            raise DatabaseQueryError(f"Failed to create chat session: {e}")
+
+    def get_by_id(self, session_id: str) -> ChatSession | None:
+        try:
+            with SQLiteConnection(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM chat_sessions WHERE id = ?", (session_id,))
+                row = cursor.fetchone()
+                if row:
+                    return self._row_to_session(row)
+                return None
+        except sqlite3.Error as e:
+            raise DatabaseQueryError(f"Failed to get chat session: {e}")
+
+    def get_by_workspace(self, workspace_id: str) -> list[ChatSession]:
+        try:
+            with SQLiteConnection(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT * FROM chat_sessions WHERE workspace_id = ? ORDER BY last_message_at DESC",
+                    (workspace_id,),
+                )
+                return [self._row_to_session(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            raise DatabaseQueryError(f"Failed to get chat sessions: {e}")
+
+    def update(self, session: ChatSession) -> ChatSession:
+        try:
+            with SQLiteConnection(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE chat_sessions
+                    SET title = ?, last_message_at = ?
+                    WHERE id = ?
+                """,
+                    (session.title, session.last_message_at.isoformat(), session.id),
+                )
+                return session
+        except sqlite3.Error as e:
+            raise DatabaseQueryError(f"Failed to update chat session: {e}")
+
+    def delete(self, session_id: str) -> bool:
+        try:
+            with SQLiteConnection(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
+                return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            raise DatabaseQueryError(f"Failed to delete chat session: {e}")
+
+    @staticmethod
+    def _row_to_session(row: sqlite3.Row) -> ChatSession:
+        from app.core.models import ChatSession
+        return ChatSession(
+            id=row["id"],
+            workspace_id=row["workspace_id"],
+            title=row["title"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            last_message_at=datetime.fromisoformat(row["last_message_at"]),
         )
 
 
@@ -579,14 +679,26 @@ class SQLiteQARepository(QARepository):
     def __init__(self, db_path: str):
         self.db_path = db_path
 
+    def create_from_params(self, workspace_id, file_ids, question, answer, tags=None) -> QAPair:
+        """Create a QA pair from raw parameters."""
+        from app.core.models import QAPair
+        qa = QAPair(
+            workspace_id=workspace_id,
+            file_ids=file_ids,
+            question=question,
+            answer=answer,
+            tags=tags or []
+        )
+        return self.create(qa)
+
     def create(self, qa: QAPair) -> QAPair:
         try:
             with SQLiteConnection(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO qa_pairs (id, workspace_id, file_ids, question, answer, created_at, likes, dislikes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO qa_pairs (id, workspace_id, file_ids, question, answer, created_at, likes, dislikes, tags)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         qa.id,
@@ -597,6 +709,7 @@ class SQLiteQARepository(QARepository):
                         qa.created_at.isoformat(),
                         qa.likes,
                         qa.dislikes,
+                        json.dumps(qa.tags) if qa.tags else json.dumps([]),
                     ),
                 )
                 return qa
@@ -647,10 +760,17 @@ class SQLiteQARepository(QARepository):
                 cursor.execute(
                     """
                     UPDATE qa_pairs
-                    SET question = ?, answer = ?, likes = ?, dislikes = ?
+                    SET question = ?, answer = ?, likes = ?, dislikes = ?, tags = ?
                     WHERE id = ?
                 """,
-                    (qa.question, qa.answer, qa.likes, qa.dislikes, qa.id),
+                    (
+                        qa.question,
+                        qa.answer,
+                        qa.likes,
+                        qa.dislikes,
+                        json.dumps(qa.tags) if qa.tags else json.dumps([]),
+                        qa.id,
+                    ),
                 )
                 return qa
         except sqlite3.Error as e:
@@ -688,6 +808,7 @@ class SQLiteQARepository(QARepository):
             created_at=datetime.fromisoformat(row["created_at"]),
             likes=row["likes"] or 0,
             dislikes=row["dislikes"] or 0,
+            tags=json.loads(row["tags"]) if "tags" in row.keys() and row["tags"] else [],
         )
 
 

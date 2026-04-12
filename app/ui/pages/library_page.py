@@ -5,7 +5,6 @@ import streamlit as st
 from app.core import SessionKeys
 from app.core.cache import (
     get_cached_database_manager,
-    invalidate_file_cache,
 )
 from app.core.logger import logger
 from app.ui.callbacks import (
@@ -22,73 +21,74 @@ from app.ui.workspace import (
     render_upload_zone,
 )
 
-STATUS_CONFIG = {
-    "processed": {
-        "icon": "✅",
-        "color": "#10b981",
-        "bg": "rgba(16,185,129,0.1)",
-        "border": "rgba(16,185,129,0.25)",
-        "label": "İşlendi",
-    },
-    "processing": {
-        "icon": "⚙️",
-        "color": "#6366f1",
-        "bg": "rgba(99,102,241,0.1)",
-        "border": "rgba(99,102,241,0.25)",
-        "label": "İşleniyor",
-    },
-    "pending": {
-        "icon": "⏳",
-        "color": "#f59e0b",
-        "bg": "rgba(245,158,11,0.1)",
-        "border": "rgba(245,158,11,0.25)",
-        "label": "Bekliyor",
-    },
-    "error": {
-        "icon": "❌",
-        "color": "#ef4444",
-        "bg": "rgba(239,68,68,0.1)",
-        "border": "rgba(239,68,68,0.25)",
-        "label": "Hata",
-    },
-}
+
+def get_status_config(L):
+    return {
+        "processed": {
+            "icon": "✅",
+            "color": "#10b981",
+            "bg": "rgba(16,185,129,0.1)",
+            "border": "rgba(16,185,129,0.25)",
+            "label": L.library.status_processed,
+        },
+        "processing": {
+            "icon": "⚙️",
+            "color": "#6366f1",
+            "bg": "rgba(99,102,241,0.1)",
+            "border": "rgba(99,102,241,0.25)",
+            "label": L.library.status_processing,
+        },
+        "pending": {
+            "icon": "⏳",
+            "color": "#f59e0b",
+            "bg": "rgba(245,158,11,0.1)",
+            "border": "rgba(245,158,11,0.25)",
+            "label": L.library.status_pending,
+        },
+        "error": {
+            "icon": "❌",
+            "color": "#ef4444",
+            "bg": "rgba(239,68,68,0.1)",
+            "border": "rgba(239,68,68,0.25)",
+            "label": L.library.status_error,
+        },
+    }
 FILE_ICONS = {"pdf": "📕", "txt": "📄", "docx": "📘", "md": "📝", "html": "🌐"}
 
 
 @st.dialog("Yeni Çalışma Alanı")
 def create_workspace_dialog():
     """Dialog for creating a workspace."""
-    new_name = st.text_input("Çalışma alanı ismi", placeholder="Örn: Hukuki Belgeler")
-    if st.button("Oluştur", type="primary", use_container_width=True):
+    L = st.session_state.locale
+    new_name = st.text_input(L.workspace.name_placeholder, placeholder="Örn: Hukuki Belgeler")
+    if st.button(L.common.confirm, type="primary", use_container_width=True):
         if new_name.strip():
             create_workspace_callback(new_name)
-            st.success(f"'{new_name}' oluşturuldu.")
+            st.success(f"'{new_name}' {L.common.success}")
             st.rerun()
         else:
-            st.error("Lütfen bir isim girin.")
+            st.error(L.common.error)
 
 
-@st.dialog("Hücreyi Yeniden Adlandır")
+@st.dialog("Çalışma Alanını Yeniden Adlandır")
 def rename_workspace_dialog(workspace_id, current_name):
     """Dialog for renaming a workspace."""
-    new_name = st.text_input("Yeni isim", value=current_name)
-    if st.button("Güncelle", type="primary", use_container_width=True):
+    L = st.session_state.locale
+    new_name = st.text_input(L.workspace.rename_dialog_title, value=current_name)
+    if st.button(L.common.update, type="primary", use_container_width=True):
         if new_name.strip():
             rename_workspace_callback(workspace_id, new_name)
-            st.success("İsim güncellendi.")
             st.rerun()
 
 
 @st.dialog("Çalışma Alanını Sil")
 def delete_workspace_confirm_dialog(workspace_id, name):
     """Confirm deletion."""
-    st.warning(
-        f"'{name}' çalışma alanını ve içindeki TÜM belgeleri silmek istediğinizden emin misiniz?"
-    )
-    st.info("Bu işlem geri alınamaz.")
-    if st.button("Evet, Her Şeyi Sil", type="primary", use_container_width=True):
+    L = st.session_state.locale
+    st.warning(L.workspace.delete_confirm)
+    st.info(L.common.info)
+    if st.button(L.common.delete, type="primary", use_container_width=True):
         delete_workspace_callback(workspace_id)
-        st.success("Çalışma alanı silindi.")
         st.rerun()
 
 
@@ -97,51 +97,23 @@ def render_file_card_visual(file, on_delete):
     ext = (file.file_type or "").lower()
     file_icon = FILE_ICONS.get(ext, "📄")
     file_size_kb = file.size / 1024 if file.size else 0
-    status = STATUS_CONFIG.get(file.status, STATUS_CONFIG["pending"])
+    L = st.session_state.locale
+    status_config = get_status_config(L)
+    status = status_config.get(file.status, status_config["pending"])
 
     with st.container(border=True):
-        st.markdown(
-            f"""
-        <div style="display:flex; align-items:flex-start; gap:12px;">
-            <div style="
-                width: 42px; height: 42px; flex-shrink: 0;
-                background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(124,58,237,0.15));
-                border: 1px solid rgba(99, 102, 241, 0.2);
-                border-radius: 10px;
-                display: flex; align-items: center; justify-content: center;
-                font-size: 1.3rem;
-            ">{file_icon}</div>
-            <div style="flex:1; min-width:0;">
-                <div style="
-                    font-weight: 600; color: #e2e8f0;
-                    font-size: 0.9rem;
-                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-                ">{file.original_name}</div>
-                <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; align-items:center;">
-                    <span style="
-                        font-size: 0.7rem; font-weight: 600;
-                        color: {status["color"]};
-                        background: {status["bg"]};
-                        border: 1px solid {status["border"]};
-                        border-radius: 20px; padding: 2px 8px;
-                    ">{status["icon"]} {status["label"]}</span>
-                    <span style="font-size: 0.7rem; color: #475569;">{ext.upper() or "?"} • {file_size_kb:.1f} KB</span>
-                </div>
-            </div>
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        c1, c2 = st.columns([1, 4], vertical_alignment="center")
+        c1.markdown(f"### {file_icon}")
+        with c2:
+            st.markdown(f"**{file.original_name}**")
+            # Using st.pills for status would be cool but here labels are fixed
+            st.caption(f"{status['icon']} {status['label']} • {ext.upper()} • {file_size_kb:.1f} KB")
 
-        col_space, col_del = st.columns([3, 1])
-        with col_del:
-            if st.button(
-                "🗑️",
-                key=f"lib_del_{file.id}",
-                help="Dosyayı sil",
-                use_container_width=True,
-            ):
-                on_delete(file.id)
+        # Tools row
+        st.write("")
+        col_del, _ = st.columns([1, 4])
+        if col_del.button("🗑️", key=f"lib_del_{file.id}", help=L.common.delete, use_container_width=True, type="secondary"):
+            on_delete(file.id)
 
 
 def render_library_page(settings: dict):
@@ -160,60 +132,57 @@ def render_library_page(settings: dict):
             else:
                 raise e
 
-    # Page Header
-    st.markdown(
-        """
-    <div style="
-        display: flex; align-items: center; gap: 14px;
-        padding: 1.25rem 1.5rem;
-        background: rgba(99, 102, 241, 0.05);
-        border: 1px solid rgba(99, 102, 241, 0.15);
-        border-radius: 14px; margin-bottom: 1.5rem;
-    ">
-        <div style="
-            width: 44px; height: 44px;
-            background: linear-gradient(135deg, #6366f1, #7c3aed);
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.4rem; flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(99,102,241,0.3);
-        ">📚</div>
-        <div>
-            <div style="font-size: 1.05rem; font-weight: 700; color: #e0e7ff; letter-spacing: -0.02em;">Belge & Çalışma Alanı Yönetimi</div>
-            <div style="font-size: 0.78rem; color: #64748b; margin-top: 1px;">Sistemi yapılandırın ve belgelerinizi yönetin</div>
-        </div>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    L = st.session_state.locale
+
+    # Page Header (Native 1.40+)
+    with st.container(border=True):
+        h_col1, h_col2 = st.columns([1, 8], vertical_alignment="center")
+        h_col1.markdown("# 📚")
+        with h_col2:
+            st.subheader(L.library.header_subtitle)
+            st.caption(L.library.header_caption)
 
     # Tabs
     tab_stats, tab_manage, tab_upload, tab_files = st.tabs(
-        ["📊 Özet", "📁 Çalışma Alanları", "📤 Yükleme", "📄 Tüm Belgeler"]
+        [L.library.stats_label, L.library.manage_tab, L.library.upload_tab, L.library.files_tab]
     )
 
     with tab_stats:
         if active_ws:
             files = get_cached_files(active_ws.id)
             render_document_stats(files, active_ws.id, active_ws.name)
+
+            # Diagnostic Sync Button
+            if st.button(L.library.sync_data, use_container_width=True, help=L.library.sync_help):
+                from app.core.cache import (
+                    invalidate_file_cache,
+                    invalidate_workspace_cache,
+                )
+                invalidate_file_cache(active_ws.id)
+                invalidate_workspace_cache(active_ws.id)
+                # Force re-count in DB
+                active_ws.file_count = db.files.count_by_workspace(active_ws.id)
+                db.workspaces.update(active_ws)
+                st.success(L.library.sync_success)
+                st.rerun()
         else:
-            st.info("İstatistikleri görmek için bir çalışma alanı seçin.")
+            st.info(L.library.no_files)
 
     with tab_manage:
-        st.markdown("### 📁 Mevcut Çalışma Alanları")
+        st.markdown(f"### {L.workspace.current_areas}")
         workspaces = st.session_state.get(SessionKeys.WORKSPACES.value, [])
 
         col_ws, col_create = st.columns([4, 1])
         with col_create:
-            if st.button("➕ Yeni Alan", use_container_width=True, type="primary"):
+            if st.button(L.common.edit, use_container_width=True, type="primary"):
                 create_workspace_dialog()
 
         for ws in workspaces:
             is_active = active_ws and ws.id == active_ws.id
             with st.container(border=True):
-                c1, c2, c3 = st.columns([0.1, 0.6, 0.3])
+                c1, c2, c3 = st.columns([0.1, 0.6, 0.3], vertical_alignment="center")
                 with c1:
-                    st.write("✅" if is_active else "📂")
+                    st.markdown("### ✅" if is_active else "### 📂")
                 with c2:
                     st.markdown(f"**{ws.name}**")
                     st.caption(
@@ -221,15 +190,9 @@ def render_library_page(settings: dict):
                     )
                 with c3:
                     sub1, sub2, sub3 = st.columns(3)
-                    with sub1:
-                        if st.button("📂", key=f"sel_{ws.id}", help="Seç"):
-                            select_workspace_callback(ws.id)
-                    with sub2:
-                        if st.button("📝", key=f"ren_{ws.id}", help="Ad değiştir"):
-                            rename_workspace_dialog(ws.id, ws.name)
-                    with sub3:
-                        if st.button("🗑️", key=f"del_{ws.id}", help="Sil"):
-                            delete_workspace_confirm_dialog(ws.id, ws.name)
+                    sub1.button("📂", key=f"sel_{ws.id}", help="Seç", use_container_width=True, on_click=select_workspace_callback, args=(ws.id,))
+                    sub2.button("📝", key=f"ren_{ws.id}", help="Ad değiştir", use_container_width=True, on_click=rename_workspace_dialog, args=(ws.id, ws.name))
+                    sub3.button("🗑️", key=f"del_{ws.id}", help="Sil", use_container_width=True, on_click=delete_workspace_confirm_dialog, args=(ws.id, ws.name))
 
     with tab_upload:
         if active_ws:
@@ -249,6 +212,8 @@ def render_library_page(settings: dict):
 
             @st.fragment
             def render_filtered_file_list():
+                L = st.session_state.locale
+                from app.core.cache import invalidate_file_cache
                 files = get_cached_files(active_ws.id)
 
                 if not files:
@@ -258,7 +223,7 @@ def render_library_page(settings: dict):
                     col_f, col_r = st.columns([3, 1])
                     with col_f:
                         status_filter = st.selectbox(
-                            "Duruma Göre Filtrele",
+                            L.library.status,
                             options=[
                                 "Tümü",
                                 "processed",
@@ -270,7 +235,7 @@ def render_library_page(settings: dict):
                             label_visibility="collapsed",
                         )
                     with col_r:
-                        if st.button("🔄 Yenile", use_container_width=True):
+                        if st.button(L.common.refresh, use_container_width=True):
                             invalidate_file_cache(active_ws.id)
                             st.rerun()
 

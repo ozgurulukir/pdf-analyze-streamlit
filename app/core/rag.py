@@ -69,6 +69,14 @@ class PromptTemplates:
         "Soru: {question}"
     )
 
+    TAG_GENERATION_PROMPT = (
+        "Aşağıdaki soru ve cevabı analiz ederek, bu içeriği en iyi tanımlayan en fazla 3 adet kısa etiket (tag) oluştur. "
+        "Etiketler Türkçe olmalı, aralarına virgül koyarak tek bir satırda yaz. "
+        "Sadece etiketleri dön, açıklama yapma.\n\n"
+        "Soru: {question}\n"
+        "Cevap: {answer}"
+    )
+
 
 class MessageCache:
     """Thread-safe LRU cache for chat history using deque for O(1) operations."""
@@ -186,6 +194,7 @@ class RAGChain:
         embedding: EmbeddingManager,
         llm_config: dict[str, Any],
         workspace_id: str,
+        session_id: str | None = None,
         config: AppConfig | None = None,
     ):
         """
@@ -197,6 +206,7 @@ class RAGChain:
         self.embedding = embedding
         self.llm_config = llm_config
         self.workspace_id = workspace_id
+        self.session_id = session_id
         self.config = config or get_config()
 
         # Load workspace metadata
@@ -210,12 +220,26 @@ class RAGChain:
     def _load_history(self) -> None:
         """Populate the message cache from database history."""
         messages = self.db.messages.get_by_workspace(
-            self.workspace_id, limit=self.config.MAX_MESSAGES_IN_MEMORY
+            self.workspace_id, limit=self.config.MAX_MESSAGES_IN_MEMORY, session_id=self.session_id
         )
         for msg in messages:
             self.cache.add(msg)
 
-    def _get_llm(self, streaming: bool = False):
+    def generate_tags(self, question: str, answer: str) -> list[str]:
+        """Generate descriptive tags for a Q&A pair using the LLM."""
+        try:
+            llm = self._get_llm(streaming=False)
+            prompt = ChatPromptTemplate.from_template(PromptTemplates.TAG_GENERATION_PROMPT)
+            chain = prompt | llm | StrOutputParser()
+
+            response = chain.invoke({"question": question, "answer": answer})
+            tags = [tag.strip().replace("#", "").title() for tag in response.split(",") if tag.strip()]
+            return tags[:3]
+        except Exception as e:
+            logger.error(f"Tag generation failed: {e}")
+            return ["Genel"]
+
+    def _get_llm(self, streaming: bool = False) -> ChatOpenAI:
         try:
             return ChatOpenAI(
                 openai_api_key=SecretStr(self.llm_config.get("api_key", self.config.OLLAMA_API_KEY))
@@ -261,13 +285,24 @@ class RAGChain:
             try:
                 if not self.workspace:
                     raise ChromaError("Çalışma alanı bulunamadı.")
+
+                # Check DB first
+                db_file_count = self.db.files.count_by_workspace(self.workspace_id)
+
                 ws_name = self.workspace.name
                 collection = self.chroma.get_collection(self.workspace_id, ws_name)
+
                 if not collection or collection.count() == 0:
-                    yield {
-                        "type": "error",
-                        "content": "⚠️ Seçili çalışma alanında taranmış döküman bulunamadı. Lütfen önce döküman yükleyin.",
-                    }
+                    if db_file_count > 0:
+                        yield {
+                            "type": "error",
+                            "content": f"⚠️ Veritabanında {db_file_count} belge görünüyor ancak vektör dizini (Chroma) boş. Lütfen belgeleri tekrar yükleyin veya 'Sistemi Senkronize Et' butonunu kullanın.",
+                        }
+                    else:
+                        yield {
+                            "type": "error",
+                            "content": "⚠️ Seçili çalışma alanında taranmış döküman bulunamadı. Lütfen önce döküman yükleyin.",
+                        }
                     return
             except Exception as checker_e:
                 logger.warning(f"[RAG] Collection check failed: {checker_e}")
@@ -314,7 +349,6 @@ class RAGChain:
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", PromptTemplates.SYSTEM_IDENTITY),
-                    MessagesPlaceholder(variable_name="chat_history"),
                     ("human", PromptTemplates.RAG_CONTEXT_TEMPLATE),
                 ]
             )
@@ -322,14 +356,12 @@ class RAGChain:
             chain = prompt | llm | StrOutputParser()
 
             # 5. Execute Stream
-            history = self.cache.to_langchain()
             full_response = ""
 
             yield {"type": "status", "content": "🧠 Yanıt oluşturuluyor..."}
 
             for token in chain.stream(
                 {
-                    "chat_history": history,
                     "context": context_text,
                     "question": question,
                     "preferences": pref_instructions,
@@ -338,19 +370,18 @@ class RAGChain:
                 full_response += token
                 yield {"type": "token", "content": token}
 
-            # 6. Save interactions
+            # 6. Update in-memory cache
             user_msg = Message(
-                role="user", content=question, workspace_id=self.workspace_id
+                role="user", content=question, workspace_id=self.workspace_id, session_id=self.session_id
             )
             ai_msg = Message(
                 role="assistant",
                 content=full_response,
                 workspace_id=self.workspace_id,
                 sources=sources,
+                session_id=self.session_id
             )
 
-            self.db.messages.create(user_msg)
-            self.db.messages.create(ai_msg)
             self.cache.add(user_msg)
             self.cache.add(ai_msg)
 

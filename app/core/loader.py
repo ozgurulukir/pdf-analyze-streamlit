@@ -21,6 +21,7 @@ class DocumentLoader:
         "docx": "Word Document",
         "html": "HTML File",
         "pptx": "PowerPoint",
+        "xlsx": "Excel Spreadsheet",
         "png": "Image (OCR)",
         "jpg": "Image (OCR)",
         "jpeg": "Image (OCR)",

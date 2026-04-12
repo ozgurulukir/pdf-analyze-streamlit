@@ -157,6 +157,10 @@ def resolve_page(selected_page: str, settings: dict[str, Any]) -> None:
         from app.ui.pages.analysis_page import render_analysis_page
 
         render_analysis_page()
+    elif UIPages.KNOWLEDGE in selected_page:
+        from app.ui.pages.knowledge_page import render_knowledge_page
+
+        render_knowledge_page()
     elif UIPages.SETTINGS in selected_page:
         from app.ui.pages.settings_page import render_settings_page
 

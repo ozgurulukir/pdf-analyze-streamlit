@@ -10,6 +10,7 @@ class SessionKeys(StrEnum):
     ACTIVE_WORKSPACE_ID = "active_workspace_id"
     WORKSPACES = "workspaces"
     CHAT_HISTORY = "chat_history"
+    ACTIVE_SESSION_ID = "active_session_id"
     SIDEBAR_OPEN = "sidebar_open"
     CURRENT_PAGE = "current_page"
     PREFERENCES = "preferences"
@@ -71,6 +72,7 @@ class DBTables:
     QA_PAIRS = "qa_pairs"
     PREFERENCES = "preferences"
     JOBS = "jobs"
+    CHAT_SESSIONS = "chat_sessions"
 
 
 class DBColumns:
@@ -120,6 +122,7 @@ class UIPages:
     CHAT = "Chat"
     DOCUMENTS = "Belgeler"
     ANALYSIS = "Analiz"
+    KNOWLEDGE = "Bilgi Bankası"
     SETTINGS = "Ayarlar"
 
 

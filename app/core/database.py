@@ -7,6 +7,7 @@ from app.core.config import AppConfig
 from app.core.exceptions import DatabaseError
 from app.core.logger import logger
 from app.core.repositories.sqlite_repositories import (
+    SQLiteChatSessionRepository,
     SQLiteChunkRepository,
     SQLiteFileRepository,
     SQLiteJobRepository,
@@ -33,7 +34,13 @@ class DatabaseManager:
             db_path: Path to the SQLite database file
         """
         if db_path is None:
-            db_path = AppConfig().DB_PATH
+            try:
+                from app.core.container import get_config
+
+                db_path = get_config().DB_PATH
+            except Exception:
+                # Fallback during container initialization
+                db_path = AppConfig().DB_PATH
         self.db_path = db_path
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -45,6 +52,7 @@ class DatabaseManager:
         self.qa = SQLiteQARepository(self.db_path)
         self.preferences = SQLitePreferencesRepository(self.db_path)
         self.jobs = SQLiteJobRepository(self.db_path)
+        self.chat_sessions = SQLiteChatSessionRepository(self.db_path)
 
         self._init_db()
 
@@ -122,6 +130,18 @@ class DatabaseManager:
                     )
                 """)
 
+                # Chat Sessions table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS chat_sessions (
+                        id TEXT PRIMARY KEY,
+                        workspace_id TEXT,
+                        title TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        last_message_at TEXT NOT NULL,
+                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+                    )
+                """)
+
                 # Messages table
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS messages (
@@ -130,11 +150,19 @@ class DatabaseManager:
                         content TEXT NOT NULL,
                         timestamp TEXT NOT NULL,
                         workspace_id TEXT,
+                        session_id TEXT,
                         sources TEXT,
                         is_summarized INTEGER DEFAULT 0,
-                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE,
+                        FOREIGN KEY (session_id) REFERENCES chat_sessions (id) ON DELETE CASCADE
                     )
                 """)
+
+                # Migration: Add session_id to messages if it doesn't exist
+                try:
+                    cursor.execute("ALTER TABLE messages ADD COLUMN session_id TEXT")
+                except sqlite3.OperationalError:
+                    pass # Already exists
 
                 # Q&A pairs table
                 cursor.execute("""
@@ -147,9 +175,16 @@ class DatabaseManager:
                         created_at TEXT NOT NULL,
                         likes INTEGER DEFAULT 0,
                         dislikes INTEGER DEFAULT 0,
+                        tags TEXT,
                         FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
                     )
                 """)
+
+                # Migration: Add tags to qa_pairs if it doesn't exist
+                try:
+                    cursor.execute("ALTER TABLE qa_pairs ADD COLUMN tags TEXT")
+                except sqlite3.OperationalError:
+                    pass # Already exists
 
                 # Preferences table
                 cursor.execute("""
@@ -199,7 +234,9 @@ class DatabaseManager:
                     "messages",
                     "qa_pairs",
                     "jobs",
+                    "chat_sessions",
                     "workspaces",
+                    "preferences",
                 ]
                 for table in tables:
                     cursor.execute(f"DELETE FROM {table}")

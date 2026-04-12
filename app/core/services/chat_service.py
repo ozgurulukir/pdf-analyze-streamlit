@@ -14,8 +14,8 @@ from app.core.cache import (
     invalidate_workspace_cache,
     text_hash,
 )
-from app.core.config import AppConfig
 from app.core.chroma import ChromaManager, EmbeddingManager
+from app.core.config import AppConfig
 from app.core.database import DatabaseManager
 from app.core.exceptions import AppError, ChromaError, LLMError
 from app.core.logger import logger
@@ -169,7 +169,7 @@ class ChatService:
         )
 
     def stream_response(
-        self, question: str, workspace: Workspace, llm_config: dict[str, Any]
+        self, question: str, workspace: Workspace, llm_config: dict[str, Any], session_id: str | None = None
     ) -> Generator[dict[str, Any], None, None]:
         """
         Get a streaming AI response for a question using RAG.
@@ -220,6 +220,7 @@ class ChatService:
                 embedding=self.embedding,
                 llm_config=llm_config,
                 workspace_id=workspace.id,
+                session_id=session_id,
             )
 
             # Collect response for caching

@@ -261,15 +261,15 @@ def cached(
 
 
 @st.cache_resource
-def get_cached_database_manager():
+def get_cached_database_manager(v: int = 2):
     """
     Get cached DatabaseManager instance (singleton via Streamlit).
     Use this for resource-heavy objects that should be created once.
     """
-    from app.core.database import DatabaseManager
+    from app.core.container import get_database
 
-    logger.debug("Creating cached DatabaseManager instance")
-    return DatabaseManager()
+    logger.debug("Getting cached DatabaseManager singleton from container")
+    return get_database()
 
 
 @st.cache_resource
@@ -319,9 +319,9 @@ def cached_get_workspaces() -> list[dict[str, Any]]:
     Get all workspaces (cached for 5 minutes).
     Returns list of workspace dicts for better serialization.
     """
-    from app.core.database import DatabaseManager
+    from app.core.container import get_database
 
-    db = DatabaseManager()
+    db = get_database()
     workspaces = db.workspaces.get_all()
     return [w.to_dict() if hasattr(w, "to_dict") else w for w in workspaces]
 
@@ -334,9 +334,9 @@ def cached_get_workspace_files(workspace_id: str) -> list[dict[str, Any]]:
     Args:
         workspace_id: Workspace ID to get files for
     """
-    from app.core.database import DatabaseManager
+    from app.core.container import get_database
 
-    db = DatabaseManager()
+    db = get_database()
     files = db.files.get_by_workspace(workspace_id)
     return [f.to_dict() if hasattr(f, "to_dict") else f for f in files]
 
@@ -350,9 +350,9 @@ def cached_get_messages(workspace_id: str, limit: int = 50) -> list[dict[str, An
         workspace_id: Workspace ID
         limit: Maximum number of messages
     """
-    from app.core.database import DatabaseManager
+    from app.core.container import get_database
 
-    db = DatabaseManager()
+    db = get_database()
     messages = db.messages.get_by_workspace(workspace_id, limit=limit)
     return [m.to_dict() if hasattr(m, "to_dict") else m for m in messages]
 

@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from app.core.models import (
+    ChatSession,
     ChunkMetadata,
     FileMetadata,
     Job,
@@ -146,13 +147,13 @@ class MessageRepository(ABC):
 
     @abstractmethod
     def get_by_workspace(
-        self, workspace_id: str, limit: int = 100, offset: int = 0
+        self, workspace_id: str, limit: int = 100, offset: int = 0, session_id: str | None = None
     ) -> list[Message]:
-        """Get messages for a workspace with pagination."""
+        """Get messages for a workspace/session with pagination."""
         pass
 
     @abstractmethod
-    def get_recent(self, workspace_id: str, limit: int = 50) -> list[Message]:
+    def get_recent(self, workspace_id: str, limit: int = 50, session_id: str | None = None) -> list[Message]:
         """Get recent messages."""
         pass
 
@@ -213,6 +214,35 @@ class QARepository(ABC):
     @abstractmethod
     def delete(self, qa_id: str) -> bool:
         """Delete Q&A pair."""
+        pass
+
+
+class ChatSessionRepository(ABC):
+    """Abstract repository for chat session operations."""
+
+    @abstractmethod
+    def create(self, session: ChatSession) -> ChatSession:
+        """Create a new session."""
+        pass
+
+    @abstractmethod
+    def get_by_id(self, session_id: str) -> ChatSession | None:
+        """Get session by ID."""
+        pass
+
+    @abstractmethod
+    def get_by_workspace(self, workspace_id: str) -> list[ChatSession]:
+        """Get all sessions in a workspace."""
+        pass
+
+    @abstractmethod
+    def update(self, session: ChatSession) -> ChatSession:
+        """Update session."""
+        pass
+
+    @abstractmethod
+    def delete(self, session_id: str) -> bool:
+        """Delete session."""
         pass
 
 

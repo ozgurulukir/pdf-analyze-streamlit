@@ -256,9 +256,9 @@ def get_rate_limiter() -> RateLimiter:
     """Get the global rate limiter instance."""
     global _global_limiter
     if _global_limiter is None:
-        from app.core.config import AppConfig
+        from app.core.container import get_config
 
-        config = AppConfig()
+        config = get_config()
 
         rate_config = RateLimitConfig(
             requests_per_minute=config.RATE_LIMIT_RPM,
