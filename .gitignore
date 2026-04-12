@@ -60,3 +60,4 @@ developer/
 # Misc
 *.log
 .cache/
+.sgconfig/

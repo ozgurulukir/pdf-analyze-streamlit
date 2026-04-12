@@ -314,7 +314,7 @@ class JobModel(BaseModel):
     workspace_id: str | None = None
     file_ids: list[str] = Field(default_factory=list)
     status: str = Field(default="pending")
-    progress: float = Field(ge=0, le=1, default=0)
+    progress: float = Field(ge=0, le=100, default=0)
     total: int = Field(ge=0, default=0)
     current: int = Field(ge=0, default=0)
     error_message: str | None = None
@@ -336,7 +336,7 @@ class JobModel(BaseModel):
     def validate_progress(cls, v: Any) -> float:
         """Ensure progress is between 0 and 1."""
         try:
-            return max(0.0, min(1.0, float(v)))
+            return max(0.0, min(100.0, float(v)))
         except (ValueError, TypeError):
             return 0.0
 

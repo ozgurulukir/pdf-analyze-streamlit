@@ -31,6 +31,7 @@ def render_workspace_selector(
                 else:
                     if st.button("📂", key=f"sel_{ws.id}", help="Seç"):
                         on_select(ws.id)
+                        st.rerun()
             with col2:
                 st.markdown(f"**{ws.name}**")
                 st.caption(
@@ -47,6 +48,7 @@ def render_workspace_selector(
                     )
                     if st.button("Güncelle", key=f"rename_btn_{ws.id}"):
                         on_rename(ws.id, new_name)
+                        st.rerun()
             with col3:
                 if st.button("🗑️", key=f"del_ws_{ws.id}", help="Sil"):
                     on_delete(ws.id)
@@ -62,6 +64,7 @@ def render_workspace_selector(
             if st.button("Oluştur", key="create_workspace_btn"):
                 if new_name.strip():
                     on_create(new_name)
+                    st.rerun()
 
     render_create_workspace()
 
@@ -133,6 +136,7 @@ def render_file_card(
             ):
                 if st.button("🗑️ Sil", key=f"del_{file.id}", use_container_width=True):
                     on_delete(file.id)
+                    st.rerun()
 
 
 def render_file_list(

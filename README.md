@@ -9,19 +9,25 @@ AI tabanlı, modern ve modüler bir belge analiz uygulaması. Streamlit, LangCha
 - 🌍 **%100 Yerelleştirme (i18n)**: Pydantic v2 tabanlı merkezi dil sistemi ile sıfır "hardcoded" metin. Dinamik dil desteği altyapısı.
 - 💬 **Modern Sohbet Arayüzü**: Etkileşim kartları (Q&A cards) ile gruplandırılmış soru-cevap yapısı ve canlı akış desteği.
 - 🧠 **Esnek LLM & Embedding**: Ollama (Cloud/Yerel) ve OpenAI uyumlu API desteği. HuggingFace modelleri ile yerel embedding imkanı.
-- 🛡️ **Güvenlik & Kalıcılık**: Entegre **Rate Limiter**, içerik **Sanitizer** ve veritabanı tabanlı kalıcı (persistent) sistem ayarları.
-- 🎨 **Premium UI**: Streamlit 1.40+ native bileşenleri (dialog, popover, status, pills) ile optimize edilmiş kullanıcı deneyimi.
+- 🛡️ **Güvenlik & Stabilite**: Entegre **Rate Limiter**, içerik **Sanitizer**, merkezi `@handle_errors` dekoratörü ve veritabanı tabanlı kalıcı sistem ayarları.
+- 🎨 **Premium UI**: Streamlit 1.40+ native bileşenleri (dialog, fragment, popover, status, pills) ile optimize edilmiş ve `@st.fragment` ile modülerleştirilmiş kullanıcı deneyimi.
+- ⚙️ **Veritabanı Yönetimi**: **Alembic** ile otomatik şema migrasyonları (Zero-Config startup).
+
 
 ## 🏗️ Mimari Yapı
 
 Uygulama, sürdürülebilirlik ve tip güvenliği için dikey katmanlı, **Repository Pattern** tabanlı modern bir mimari kullanır:
 
 - **Core Layer**:
-  - **Repository Pattern**: Veri erişimi arayüzler (Interfaces) üzerinden soyutlanmıştır (SQLite & ChromaDB).
+  - **Repository Pattern**: Veri erişimi arayüzler (Interfaces) üzerinden soyutlanmıştır. SQLite (Raw SQL) & ChromaDB entegrasyonu.
+  - **Database Migrations**: Alembic entegrasyonu ile veritabanı şeması uygulama başlatıldığında otomatik olarak güncellenir.
   - **Pydantic v2 Config & i18n**: Tüm uygulama yapılandırması ve yerelleştirme metinleri tip güvenliği sağlayan modeller ile merkezi olarak yönetilir.
   - **Background Jobs**: Uzun süreli belge işleme süreçleri için iş kuyruğu yönetimi.
 - **Service Layer**: İş mantığı, asenkron sohbet servisleri ve belge işleme boru hatları (pipelines).
-- **UI Layer**: Streamlit tabanlı modüler sayfalar, sidebar bileşenleri ve dinamik callback yönetimi.
+- **UI Layer**: 
+  - **State Management**: Merkezi `AppState` yöneticisi ile tip güvenli `st.session_state` erişimi.
+  - **Error Handling**: Merkezi `@handle_errors` dekoratörü ile standartlaştırılmış UI hata yönetimi.
+  - **Modular Components**: `@st.fragment` ile izole edilmiş hızlı arayüz bileşenleri.
 
 ## 📦 Kurulum ve Çalıştırma
 

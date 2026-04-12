@@ -114,6 +114,7 @@ def render_file_card_visual(file, on_delete):
         col_del, _ = st.columns([1, 4])
         if col_del.button("🗑️", key=f"lib_del_{file.id}", help=L.common.delete, use_container_width=True, type="secondary"):
             on_delete(file.id)
+            st.rerun()
 
 
 def render_library_page(settings: dict):
@@ -190,9 +191,13 @@ def render_library_page(settings: dict):
                     )
                 with c3:
                     sub1, sub2, sub3 = st.columns(3)
-                    sub1.button("📂", key=f"sel_{ws.id}", help="Seç", use_container_width=True, on_click=select_workspace_callback, args=(ws.id,))
-                    sub2.button("📝", key=f"ren_{ws.id}", help="Ad değiştir", use_container_width=True, on_click=rename_workspace_dialog, args=(ws.id, ws.name))
-                    sub3.button("🗑️", key=f"del_{ws.id}", help="Sil", use_container_width=True, on_click=delete_workspace_confirm_dialog, args=(ws.id, ws.name))
+                    if sub1.button("📂", key=f"sel_{ws.id}", help="Seç", use_container_width=True):
+                        select_workspace_callback(ws.id)
+                        st.rerun()
+                    if sub2.button("📝", key=f"ren_{ws.id}", help="Ad değiştir", use_container_width=True):
+                        rename_workspace_dialog(ws.id, ws.name)
+                    if sub3.button("🗑️", key=f"del_{ws.id}", help="Sil", use_container_width=True):
+                        delete_workspace_confirm_dialog(ws.id, ws.name)
 
     with tab_upload:
         if active_ws:

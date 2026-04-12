@@ -133,7 +133,8 @@ class ChromaManager:
         collection_name = self.get_collection_name(workspace_id, workspace_name)
         try:
             return self.client.get_collection(name=collection_name)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Collection not found directly, attempting fallback: {e}")
             # Fallback: Search all collections for the workspace_id in metadata
             try:
                 all_collections = self.client.list_collections()
@@ -329,7 +330,8 @@ class ChromaManager:
 
         try:
             return collection.count()
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Could not get chunk count for collection {workspace_name}: {e}")
             return 0
 
     def delete_workspace_data(self, workspace_id: str, workspace_name: str) -> None:

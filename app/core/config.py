@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 # Load .env
 load_dotenv()
 
+from app.core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,7 +43,7 @@ def get_ollama_models(base_url: str = "http://localhost:11434") -> list[dict[str
                     model_options.append({"label": f"{name} (indirilmiş)", "value": name})
                 return model_options
     except Exception as e:
-        print(f"Ollama API hatası: {e}")
+        logger.warning(f"Ollama API hatası: {e}")
     return default_models
 
 def get_ollama_llm_models(base_url: str = "http://localhost:11434") -> list[dict[str, str]]:
@@ -67,7 +71,7 @@ def get_ollama_llm_models(base_url: str = "http://localhost:11434") -> list[dict
                 if llm_models:
                     return llm_models
     except Exception as e:
-        print(f"Ollama API hatası: {e}")
+        logger.warning(f"Ollama API hatası: {e}")
     return default_models
 
 
@@ -145,8 +149,12 @@ class AppConfig(BaseSettings):
     }
 
     @model_validator(mode="after")
-    def validate_paths_and_config(self) -> "AppConfig":
-        """Initialize paths and validate configuration."""
+    def _validate_model(self) -> "AppConfig":
+        """Pydantic validator wrapper."""
+        return self._perform_validation()
+
+    def _perform_validation(self) -> "AppConfig":
+        """Initialize paths and validate configuration. Can be called manually."""
         # Force absolute paths relative to project root (parent of app/ folder)
         project_root = Path(__file__).parent.parent.parent.absolute()
 
@@ -217,7 +225,7 @@ class AppConfig(BaseSettings):
                 setattr(self, attr_name, val)
 
         # Re-resolve paths
-        self.validate_paths_and_config()
+        self._perform_validation()
 
     def is_production(self) -> bool:
         return self.APP_ENV.lower() == "production"

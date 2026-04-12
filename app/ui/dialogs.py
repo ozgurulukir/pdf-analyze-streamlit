@@ -62,6 +62,7 @@ def manage_workspaces_dialog():
                     new_name = st.text_input(L.common.edit, value=ws.name, key=f"ren_input_{ws.id}")
                     if st.button(L.common.update, key=f"ren_btn_{ws.id}", use_container_width=True):
                         rename_workspace_callback(ws.id, new_name)
+                        st.rerun()
                 st.caption(
                     f"Blok: {ws.file_count} belge | Güncelleme: {ws.last_modified.strftime('%d.%m.%Y %H:%M')}"
                 )
@@ -70,12 +71,14 @@ def manage_workspaces_dialog():
                 if not is_active:
                     if st.button(L.workspace.select, key=f"sel_{ws.id}"):
                         select_workspace_callback(ws.id)
+                        st.rerun()
                 else:
                     st.button(L.workspace.active, key=f"act_{ws.id}", disabled=True)
 
             with cols[2]:
                 if st.button("🗑️", key=f"del_{ws.id}", help=L.common.delete):
                     delete_workspace_callback(ws.id)
+                    st.rerun()
 
     st.divider()
     st.markdown(f"### {L.workspace.new_workspace}")
@@ -115,9 +118,11 @@ def global_settings_dialog():
             if col1.button(L.settings.clear_chat, use_container_width=True):
                 if active_id:
                     clear_chat_history_callback(active_id)
+                    st.rerun()
 
             if col2.button(L.settings.clear_cache, use_container_width=True):
                 clear_cache_callback()
+                st.rerun()
 
             st.divider()
 
@@ -170,7 +175,7 @@ def global_settings_dialog():
                     from app.ui.callbacks import reset_system_callback
                     reset_system_callback()
                     st.session_state.show_reset_confirm = False
-                    st.rerun() # Full rerun after actual reset
+                    st.rerun(scope="app") 
 
     render_settings_fragment()
 
@@ -206,6 +211,7 @@ def chat_sessions_dialog():
     if not is_default_active:
         if default_cols[1].button("Seç", key="sel_default"):
             select_chat_session_callback(None)
+            st.rerun()
     else:
         default_cols[1].button("Aktif", key="act_default", disabled=True)
 
@@ -226,12 +232,14 @@ def chat_sessions_dialog():
                 if not is_active:
                     if st.button("Seç", key=f"sess_sel_{sess.id}"):
                         select_chat_session_callback(sess.id)
+                        st.rerun()
                 else:
                     st.button("Aktif", key=f"sess_act_{sess.id}", disabled=True)
 
             with cols[2]:
                 if st.button("🗑️", key=f"sess_del_{sess.id}"):
                     delete_chat_session_callback(sess.id)
+                    st.rerun()
 
     st.divider()
     st.markdown(f"### ➕ {L.chat.no_history}")
@@ -239,3 +247,4 @@ def chat_sessions_dialog():
     if st.button(L.common.save, use_container_width=True, type="primary"):
         if new_title:
             create_chat_session_callback(active_ws_id, new_title)
+            st.rerun()

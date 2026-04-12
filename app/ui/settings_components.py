@@ -4,7 +4,11 @@ import streamlit as st
 
 from app.core.config import AppConfig, get_ollama_llm_models
 from app.core.constants import SessionKeys
-from app.ui.callbacks import save_settings_callback
+from app.ui.callbacks import (
+    on_embed_type_change_callback,
+    on_provider_change_callback,
+    save_settings_callback,
+)
 
 
 def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
@@ -23,18 +27,8 @@ def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
         if current_type in ["Ollama Cloud", "Yerel Ollama", "Özel (OpenAI Compatible)"]
         else 0,
         key=SessionKeys.LAST_ENDPOINT_TYPE.value,
-        on_change=save_settings_callback,
+        on_change=on_provider_change_callback,
     )
-
-    if current_type != endpoint_type:
-        st.session_state[SessionKeys.LAST_ENDPOINT_TYPE.value] = endpoint_type
-        if endpoint_type == "Ollama Cloud":
-            st.session_state[SessionKeys.LLM_BASE_URL.value] = "https://ollama.com/v1"
-        elif endpoint_type == "Yerel Ollama":
-            st.session_state[SessionKeys.LLM_BASE_URL.value] = (
-                "http://localhost:11434/v1"
-            )
-        save_settings_callback()
 
     st.markdown("**🔗 API Bağlantısı**")
     st.text_input(
@@ -102,16 +96,15 @@ def render_embedding_settings(key_prefix: str = "") -> dict[str, Any]:
     with st.container(border=True):
         from app.core.container import get_config
         config = get_config()
-        embed_type = st.radio(
+        use_hf = st.session_state.get(SessionKeys.USE_HUGGINGFACE.value, config.USE_HUGGINGFACE)
+        st.radio(
             "Sağlayıcı",
             ["Ollama", "HuggingFace"],
-            index=1 if st.session_state.get(SessionKeys.USE_HUGGINGFACE.value, config.USE_HUGGINGFACE) else 0,
+            index=1 if use_hf else 0,
             horizontal=True,
-            on_change=save_settings_callback,
-            key=SessionKeys.USE_HUGGINGFACE.value,
+            on_change=on_embed_type_change_callback,
+            key="_temp_embed_type",
         )
-        use_hf = embed_type == "HuggingFace"
-        st.session_state[SessionKeys.USE_HUGGINGFACE.value] = use_hf
 
         if use_hf:
             model = st.text_input(
@@ -120,7 +113,6 @@ def render_embedding_settings(key_prefix: str = "") -> dict[str, Any]:
                 on_change=save_settings_callback,
                 key=SessionKeys.HF_EMBED_MODEL.value,
             )
-            st.session_state[SessionKeys.HF_EMBED_MODEL.value] = model
         else:
             url = st.text_input(
                 "Ollama URL",
@@ -128,14 +120,12 @@ def render_embedding_settings(key_prefix: str = "") -> dict[str, Any]:
                 on_change=save_settings_callback,
                 key=SessionKeys.OLLAMA_URL.value,
             )
-            st.session_state[SessionKeys.OLLAMA_URL.value] = url
             model = st.text_input(
                 "Embed Model",
                 value=st.session_state.get(SessionKeys.EMBED_MODEL.value, ""),
                 on_change=save_settings_callback,
                 key=SessionKeys.EMBED_MODEL.value,
             )
-            st.session_state[SessionKeys.EMBED_MODEL.value] = model
 
         st.info(
             "⚠️ **Model Değişikliği Notu:** Ollama ve HuggingFace modelleri farklı vektör boyutları kullanır. "
@@ -185,9 +175,8 @@ def render_data_settings(key_prefix: str = "") -> dict[str, Any]:
             key=SessionKeys.CHUNK_OVERLAP.value,
         )
 
-        st.session_state[SessionKeys.DATA_DIR.value] = data_dir
-        st.session_state[SessionKeys.CHROMA_PATH.value] = chroma_path
-        st.session_state[SessionKeys.CHUNK_SIZE.value] = chunk_size
-        st.session_state[SessionKeys.CHUNK_OVERLAP.value] = overlap
+        # Data paths and chunking settings are handled directly by their widget keys
+        # The save_settings_callback attached to each widget ensures persistence.
+        model = st.session_state.get(SessionKeys.EMBED_MODEL.value, "")
 
     return {}

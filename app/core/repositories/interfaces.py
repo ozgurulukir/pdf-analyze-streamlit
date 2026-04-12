@@ -299,6 +299,11 @@ class JobRepository(ABC):
         pass
 
     @abstractmethod
+    def get_active(self) -> list[Job]:
+        """Get all jobs that are pending or running."""
+        pass
+
+    @abstractmethod
     def update(self, job: Job) -> Job:
         """Update job."""
         pass

@@ -230,7 +230,7 @@ class Sanitizer:
                 )
 
             return SanitizationResult(is_valid=True, sanitized_value=url)
-        except Exception as e:
+        except ValueError as e:
             return SanitizationResult(
                 is_valid=False, sanitized_value="", error_message=f"Invalid URL: {e}"
             )

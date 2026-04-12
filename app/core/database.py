@@ -1,5 +1,3 @@
-"""Database manager for SQLite storage using Repository Pattern."""
-
 import sqlite3
 from pathlib import Path
 
@@ -38,8 +36,9 @@ class DatabaseManager:
                 from app.core.container import get_config
 
                 db_path = get_config().DB_PATH
-            except Exception:
+            except Exception as e:
                 # Fallback during container initialization
+                logger.debug(f"Container get_config failed, using default AppConfig: {e}")
                 db_path = AppConfig().DB_PATH
         self.db_path = db_path
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -74,152 +73,27 @@ class DatabaseManager:
     def _init_db(self) -> None:
         """
         Initialize database tables if they do not exist.
+        Now managed exclusively via Alembic migrations.
         """
+        from pathlib import Path
         try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
+            import alembic.command
+            import alembic.config
 
-                # Workspaces table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS workspaces (
-                        id TEXT PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        description TEXT,
-                        created_at TEXT NOT NULL,
-                        last_modified TEXT NOT NULL,
-                        file_count INTEGER DEFAULT 0,
-                        is_active INTEGER DEFAULT 0
-                    )
-                """)
+            project_root = Path(__file__).resolve().parent.parent.parent
+            alembic_cfg_path = project_root / "alembic.ini"
 
-                # Files table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS files (
-                        id TEXT PRIMARY KEY,
-                        workspace_id TEXT,
-                        filename TEXT NOT NULL,
-                        original_name TEXT NOT NULL,
-                        file_type TEXT,
-                        size INTEGER,
-                        status TEXT,
-                        chunk_count INTEGER DEFAULT 0,
-                        content_hash TEXT,
-                        uploaded_at TEXT NOT NULL,
-                        processed_at TEXT,
-                        error_message TEXT,
-                        tags TEXT,
-                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-                    )
-                """)
-
-                # Chunks table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS chunks (
-                        id TEXT PRIMARY KEY,
-                        file_id TEXT,
-                        workspace_id TEXT,
-                        content TEXT NOT NULL,
-                        page_number INTEGER,
-                        chunk_index INTEGER,
-                        token_count INTEGER,
-                        metadata TEXT,
-                        chroma_id TEXT,
-                        created_at TEXT,
-                        FOREIGN KEY (file_id) REFERENCES files (id) ON DELETE CASCADE,
-                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-                    )
-                """)
-
-                # Chat Sessions table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS chat_sessions (
-                        id TEXT PRIMARY KEY,
-                        workspace_id TEXT,
-                        title TEXT NOT NULL,
-                        created_at TEXT NOT NULL,
-                        last_message_at TEXT NOT NULL,
-                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-                    )
-                """)
-
-                # Messages table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS messages (
-                        id TEXT PRIMARY KEY,
-                        role TEXT NOT NULL,
-                        content TEXT NOT NULL,
-                        timestamp TEXT NOT NULL,
-                        workspace_id TEXT,
-                        session_id TEXT,
-                        sources TEXT,
-                        is_summarized INTEGER DEFAULT 0,
-                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE,
-                        FOREIGN KEY (session_id) REFERENCES chat_sessions (id) ON DELETE CASCADE
-                    )
-                """)
-
-                # Migration: Add session_id to messages if it doesn't exist
-                try:
-                    cursor.execute("ALTER TABLE messages ADD COLUMN session_id TEXT")
-                except sqlite3.OperationalError:
-                    pass # Already exists
-
-                # Q&A pairs table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS qa_pairs (
-                        id TEXT PRIMARY KEY,
-                        workspace_id TEXT,
-                        file_ids TEXT,
-                        question TEXT NOT NULL,
-                        answer TEXT NOT NULL,
-                        created_at TEXT NOT NULL,
-                        likes INTEGER DEFAULT 0,
-                        dislikes INTEGER DEFAULT 0,
-                        tags TEXT,
-                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-                    )
-                """)
-
-                # Migration: Add tags to qa_pairs if it doesn't exist
-                try:
-                    cursor.execute("ALTER TABLE qa_pairs ADD COLUMN tags TEXT")
-                except sqlite3.OperationalError:
-                    pass # Already exists
-
-                # Preferences table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS preferences (
-                        id INTEGER PRIMARY KEY,
-                        weights TEXT,
-                        config TEXT,
-                        updated_at TEXT NOT NULL
-                    )
-                """)
-
-                # Background jobs table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS jobs (
-                        id TEXT PRIMARY KEY,
-                        job_type TEXT NOT NULL,
-                        workspace_id TEXT,
-                        file_ids TEXT,
-                        status TEXT NOT NULL,
-                        progress REAL DEFAULT 0.0,
-                        total INTEGER DEFAULT 0,
-                        current INTEGER DEFAULT 0,
-                        error_message TEXT,
-                        created_at TEXT NOT NULL,
-                        started_at TEXT,
-                        completed_at TEXT,
-                        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-                    )
-                """)
-
-                conn.commit()
-                logger.debug("Database initialized successfully")
-        except sqlite3.Error as e:
-            logger.error(f"Database initialization failed: {e}")
-            raise DatabaseError(f"Failed to initialize database: {e}")
+            if alembic_cfg_path.exists():
+                alembic_cfg = alembic.config.Config(str(alembic_cfg_path))
+                # Explicitly set the path to migrations folder
+                alembic_cfg.set_main_option("script_location", str(project_root / "db_migrations"))
+                alembic.command.upgrade(alembic_cfg, "head")
+                logger.debug("Database migrations applied successfully via Alembic")
+            else:
+                logger.warning(f"Alembic configuration not found at {alembic_cfg_path}")
+        except Exception as e:
+            logger.error(f"Database migration failed: {e}")
+            raise DatabaseError(f"Failed to apply database migrations: {e}")
 
     def reset_system(self) -> None:
         """

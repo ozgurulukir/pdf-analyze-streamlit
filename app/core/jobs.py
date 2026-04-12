@@ -4,11 +4,12 @@ import queue
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from app.core.constants import ProcessingStatus
 from app.core.database import DatabaseManager
+from app.core.logger import logger
 from app.core.models import Job
 
 
@@ -66,7 +67,7 @@ class JobQueue:
         self, job: Job, task_func: Callable, task_args: tuple, task_kwargs: dict
     ):
         """Run a job in the background."""
-        job.status = ProcessingStatus.RUNNING
+        job.status = ProcessingStatus.RUNNING.value
         job.started_at = datetime.now()
         self._db.jobs.update(job)
 
@@ -76,8 +77,9 @@ class JobQueue:
                 job.current = current
                 job.total = total
                 job.progress = (current / total) * 100 if total > 0 else 0
+                # Only log message, don't set as error_message unless it is one
                 if message:
-                    job.error_message = message
+                    logger.debug(f"Job {job.id} progress: {message}")
                 self._db.jobs.update(job)
 
             # Run the task
@@ -86,7 +88,7 @@ class JobQueue:
             )
 
             # Mark as completed
-            job.status = ProcessingStatus.COMPLETED
+            job.status = ProcessingStatus.COMPLETED.value
             job.progress = 100.0
             job.current = job.total
             job.completed_at = datetime.now()
@@ -107,14 +109,30 @@ class JobQueue:
             return self._jobs.get(job_id)
 
     def get_active_jobs(self, workspace_id: str | None = None) -> list[Job]:
-        """Get all active (pending/running) jobs."""
+        """Get all active (pending/running) jobs from memory and database."""
+        # 1. Sync from DB first to see jobs created by other sessions or before restart
+        try:
+            db_jobs = self._db.jobs.get_active()
+            with self._lock:
+                for j in db_jobs:
+                    if j.id not in self._jobs:
+                        self._jobs[j.id] = j
+        except Exception as e:
+            logger.error(f"Failed to sync active jobs from DB: {e}")
+
         with self._lock:
             jobs = list(self._jobs.values())
 
         if workspace_id:
             jobs = [j for j in jobs if j.workspace_id == workspace_id]
 
-        return [j for j in jobs if j.status in ("pending", "running")]
+        # Return those that are genuinely active OR recently finished
+        return [
+            j for j in jobs 
+            if j.status in (ProcessingStatus.PENDING.value, ProcessingStatus.RUNNING.value)
+            or (j.status in (ProcessingStatus.COMPLETED.value, ProcessingStatus.FAILED.value) 
+                and j.completed_at and j.completed_at > datetime.now() - timedelta(seconds=60))
+        ]
 
     def get_job_status(self, job_id: str) -> Job | None:
         """Get job status from database."""
@@ -213,8 +231,8 @@ class EmbeddingWorker:
                                 where={"file_id": file_meta.id}
                             )
                             existing_chunks = all_existing.get("ids")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to check existing chunks for file {file_meta.id}: {e}")
 
                 if existing_chunks:
                     # Skip embedding, just update metadata
@@ -229,9 +247,11 @@ class EmbeddingWorker:
                     # Chunk the text
                     chunks = self.chunk_manager.chunk_text(file_data.get("text", ""))
                     chunks_count = len(chunks)
+                    logger.info(f"File {file_meta.id} split into {chunks_count} chunks")
 
                     # Get embeddings
                     if chunks:
+                        logger.info(f"Generating embeddings for {chunks_count} chunks...")
                         embeddings = self.embedding_manager.get_embeddings(chunks)
 
                         # Upsert to Chroma
@@ -243,6 +263,8 @@ class EmbeddingWorker:
                             embeddings=embeddings,
                             source=file_meta.original_name,
                         )
+                    else:
+                        logger.warning(f"No chunks generated for file {file_meta.id}")
 
                 # Update file status
                 file_meta.status = ProcessingStatus.PROCESSED.value

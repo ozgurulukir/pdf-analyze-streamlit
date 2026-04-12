@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from app.core.exceptions import DatabaseQueryError
@@ -941,6 +941,25 @@ class SQLiteJobRepository(JobRepository):
 
     def get_pending(self, limit: int = 10) -> list[Job]:
         return self.get_by_status("pending")[:limit]
+
+    def get_active(self) -> list[Job]:
+        """Fetch all jobs with pending or running status, plus recently finished ones."""
+        try:
+            with SQLiteConnection(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Include pending/running OR recently (last 60s) completed/failed
+                cursor.execute(
+                    """
+                    SELECT * FROM jobs 
+                    WHERE status IN ('pending', 'running') 
+                    OR (status IN ('completed', 'failed') AND completed_at > ?)
+                    ORDER BY created_at ASC
+                """,
+                    ((datetime.now() - timedelta(seconds=60)).isoformat(),),
+                )
+                return [self._row_to_job(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            raise DatabaseQueryError(f"Failed to get active jobs: {e}")
 
     def update(self, job: Job) -> Job:
         try:
