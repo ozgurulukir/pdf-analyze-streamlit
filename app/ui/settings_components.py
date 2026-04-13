@@ -12,13 +12,14 @@ from app.ui.callbacks import (
 
 def render_llm_settings(key_prefix: str = "") -> None:
     """Render LLM settings using native components."""
+    L = st.session_state.locale
     config = AppConfig()
     current_type = st.session_state.get(
         SessionKeys.LAST_ENDPOINT_TYPE.value, config.DEFAULT_LLM_PROVIDER
     )
 
     endpoint_type = st.selectbox(
-        "Sağlayıcı",
+        L.settings.provider,
         ["Ollama Cloud", "Yerel Ollama", "Özel (OpenAI Compatible)"],
         index=["Ollama Cloud", "Yerel Ollama", "Özel (OpenAI Compatible)"].index(
             current_type
@@ -29,28 +30,28 @@ def render_llm_settings(key_prefix: str = "") -> None:
         on_change=on_provider_change_callback,
     )
 
-    st.markdown("**🔗 API Bağlantısı**")
+    st.markdown(f"**{L.settings.api_connection}**")
     st.text_input(
-        "Giriş Noktası (Base URL)",
+        L.settings.base_url,
         key=SessionKeys.LLM_BASE_URL.value,
         on_change=save_settings_callback,
     )
     st.text_input(
-        "API Anahtarı",
+        L.settings.api_key,
         type="password",
         key=SessionKeys.OLLAMA_API_KEY.value,
         on_change=save_settings_callback,
     )
 
-    st.markdown("**⚙️ Model Ayarları**")
+    st.markdown(f"**{L.settings.model_settings}**")
     is_cloud = endpoint_type == "Ollama Cloud"
     use_custom = st.checkbox(
-        "Özel model adı kullan", value=is_cloud, key=f"{key_prefix}use_custom_llm"
+        L.settings.use_custom_model, value=is_cloud, key=f"{key_prefix}use_custom_llm"
     )
 
     if use_custom:
         st.text_input(
-            "Model Adı",
+            L.settings.model_name,
             key=SessionKeys.LLM_MODEL.value,
             on_change=save_settings_callback,
         )
@@ -65,7 +66,7 @@ def render_llm_settings(key_prefix: str = "") -> None:
         curr = st.session_state.get(SessionKeys.LLM_MODEL.value)
         idx = options.index(curr) if curr in options else 0
         st.selectbox(
-            "Model Seçin",
+            L.settings.select_model,
             options=options,
             index=idx,
             key=SessionKeys.LLM_MODEL.value,
@@ -73,7 +74,7 @@ def render_llm_settings(key_prefix: str = "") -> None:
         )
 
     st.slider(
-        "Temperature (Yaratıcılık)",
+        L.settings.temperature,
         0.0,
         1.0,
         step=0.1,
@@ -81,17 +82,18 @@ def render_llm_settings(key_prefix: str = "") -> None:
         on_change=save_settings_callback,
     )
 
-    if st.button("🔌 Bağlantıyı Test Et", key=f"{key_prefix}test_conn", use_container_width=True, on_click=test_connections_callback):
+    if st.button(L.settings.test_connection, key=f"{key_prefix}test_conn", use_container_width=True, on_click=test_connections_callback):
         pass
 
 def render_embedding_settings(key_prefix: str = "") -> None:
     """Render embedding settings using modern components."""
+    L = st.session_state.locale
     with st.container(border=True):
         from app.core.container import get_config
         config = get_config()
         use_hf = st.session_state.get(SessionKeys.USE_HUGGINGFACE.value, config.USE_HUGGINGFACE)
         st.radio(
-            "Sağlayıcı",
+            L.settings.provider,
             ["Ollama", "HuggingFace"],
             index=1 if use_hf else 0,
             horizontal=True,
@@ -101,49 +103,46 @@ def render_embedding_settings(key_prefix: str = "") -> None:
 
         if use_hf:
             st.text_input(
-                "HF Model",
+                L.settings.hf_model,
                 on_change=save_settings_callback,
                 key=SessionKeys.HF_EMBED_MODEL.value,
             )
         else:
             st.text_input(
-                "Ollama URL",
+                L.settings.ollama_url,
                 on_change=save_settings_callback,
                 key=SessionKeys.OLLAMA_URL.value,
             )
             st.text_input(
-                "Embed Model",
+                L.settings.embed_model_name,
                 on_change=save_settings_callback,
                 key=SessionKeys.EMBED_MODEL.value,
             )
 
-        st.info(
-            "⚠️ **Model Değişikliği Notu:** Ollama ve HuggingFace modelleri farklı vektör boyutları kullanır. "
-            "Sağlayıcı değiştirdiğinizde eski dökümanlar okunamaz hale gelebilir. Yeni modelin aktif olması için "
-            "belgeleri tekrar yüklemeniz veya Sistemi Sıfırlamanız önerilir."
-        )
+        st.info(L.settings.model_change_warning)
 
 def render_data_settings(key_prefix: str = "") -> None:
     """Render data & system settings using modern components."""
+    L = st.session_state.locale
     with st.container(border=True):
-        st.markdown("**📁 Veri Yolları**")
+        st.markdown(f"**{L.settings.paths_title}**")
         st.text_input(
-            "Veri Klasörü",
+            L.settings.data_dir,
             on_change=save_settings_callback,
             key=SessionKeys.DATA_DIR.value,
         )
         st.text_input(
-            "Chroma Yolu",
+            L.settings.chroma_path,
             on_change=save_settings_callback,
             key=SessionKeys.CHROMA_PATH.value,
         )
 
         from app.core.container import get_config
         _ = get_config()
-        st.markdown("**✂️ Parçalama (Chunking)**")
+        st.markdown(f"**{L.settings.chunking_title}**")
         c1, c2 = st.columns(2)
         c1.number_input(
-            "Boyut",
+            L.settings.chunk_size,
             100,
             5000,
             step=100,
@@ -151,7 +150,7 @@ def render_data_settings(key_prefix: str = "") -> None:
             key=SessionKeys.CHUNK_SIZE.value,
         )
         c2.number_input(
-            "Overlap",
+            L.settings.chunk_overlap,
             0,
             1000,
             step=50,

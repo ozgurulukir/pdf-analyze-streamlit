@@ -37,13 +37,13 @@ def render_preference_adjuster(preferences):
                     db.preferences.update_weights({"detailed": 0.0})
                     preferences.weights["detailed"] = 0.0
                     st.session_state["pref_detailed"] = False # Session state'i de güncelle!
-                    st.toast("⚠️ Detaylı anlatım kapatıldı (Çelişki önlendi).")
+                    st.toast(L.analysis.pref_conflict_detailed)
             elif tag_to_update == "detailed":
                 if preferences.weights.get("concise", 0) > 0.5:
                     db.preferences.update_weights({"concise": 0.0})
                     preferences.weights["concise"] = 0.0
                     st.session_state["pref_concise"] = False # Session state'i de güncelle!
-                    st.toast("⚠️ Kısa yanıt kapatıldı (Çelişki önlendi).")
+                    st.toast(L.analysis.pref_conflict_concise)
 
         new_val = 1.0 if is_active else 0.0
         preferences.weights[tag_to_update] = new_val
@@ -84,7 +84,7 @@ def render_analysis_page():
         from app.core.exceptions import DatabaseError
         if isinstance(e, DatabaseError):
             logger.error(f"Failed to init DB in analysis page: {e}")
-            st.error("Veritabanı bağlantı hatası.")
+            st.error(L.messages.db_error.format(str(e)))
             return
         raise e
 
@@ -110,13 +110,13 @@ def render_analysis_page():
         tab1, tab2 = st.tabs([L.analysis.stats_tab, L.analysis.pref_tab])
 
         with tab1:
-            st.markdown("### 📈 Workspace İstatistikleri")
+            st.markdown(f"### {L.analysis.stats_title}")
             if files:
                 total_docs = len(files)
                 sources = list({f.original_name for f in files})
 
                 with st.container(border=True):
-                    st.caption("📋 Detaylı Boyut Analizi")
+                    st.caption(L.analysis.detail_analysis)
                     c1, c2, c3 = st.columns(3)
                     c1.metric(L.analysis.total_docs, total_docs)
                     c2.metric(L.analysis.unique_sources, len(sources))

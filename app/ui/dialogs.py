@@ -20,11 +20,11 @@ from app.ui.settings_components import (
 )
 
 
-@st.dialog("Sistemi Sıfırla")
+@st.dialog("⚠️")
 def reset_system_dialog():
     """Dangerous action confirmation."""
     L = st.session_state.locale
-    st.error(L.settings.reset_system)
+    st.markdown(f"### {L.common.dialog_reset_title}")
     st.warning(L.common.warning)
     confirm = st.text_input(L.common.confirm)
     if st.button(
@@ -40,10 +40,11 @@ def reset_system_dialog():
         st.rerun()
 
 
-@st.dialog("🎯 Çalışma Alanları", width="large")
+@st.dialog("📂", width="large")
 def manage_workspaces_dialog():
     """Dialog for workspace management: Switch, Create, Delete."""
     L = st.session_state.locale
+    st.markdown(f"### {L.common.dialog_workspace_title}")
     workspaces = st.session_state.get(SessionKeys.WORKSPACES.value, [])
     active_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
 
@@ -65,7 +66,7 @@ def manage_workspaces_dialog():
                             rename_workspace_callback(ws.id, new_name)
                             st.rerun()
                 st.caption(
-                    f"Blok: {ws.file_count} belge | Güncelleme: {ws.last_modified.strftime('%d.%m.%Y %H:%M')}"
+                    L.workspace.stats.format(ws.file_count, ws.last_modified.strftime('%d.%m.%Y %H:%M'))
                 )
 
             with cols[1]:
@@ -83,20 +84,21 @@ def manage_workspaces_dialog():
 
     st.divider()
     st.markdown(f"### {L.workspace.new_workspace}")
-    new_name = st.text_input(L.workspace.name_placeholder, placeholder="Örn: Proje Analizi")
+    new_name = st.text_input(L.workspace.name_placeholder, placeholder=L.workspace.example_name)
     if st.button(L.common.save, use_container_width=True, type="primary"):
         if new_name:
             create_workspace_callback(new_name)
             st.rerun()
 
 
-@st.dialog("⚙️ Sistem Yapılandırması", width="large")
+@st.dialog("⚙️", width="large")
 def global_settings_dialog():
     """Consolidated settings dialog replacing the sidebar configuration."""
 
     @st.fragment
     def render_settings_fragment():
         L = st.session_state.locale
+        st.markdown(f"### {L.common.dialog_settings_title}")
         tab1, tab2, tab3, tab4 = st.tabs(
             [L.settings.llm_tab, L.settings.embed_tab, L.settings.system_tab, L.settings.tools_tab]
         )
@@ -128,7 +130,7 @@ def global_settings_dialog():
             st.divider()
 
             # ID Consistency & Health Utility
-            st.markdown("### 🛠️ Sistem Sağlığı")
+            st.markdown(f"### {L.settings.health_title}")
             from app.core.container import get_database
             db = get_database()
             ws_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
@@ -139,17 +141,17 @@ def global_settings_dialog():
                 if sess_id:
                     sess = db.chat_sessions.get_by_id(sess_id)
                     if sess and sess.workspace_id != ws_id:
-                        issues.append("⚠️ Oturum ve Alan Uyumsuzluğu! Veritabanı tutarlılığı için bu durumu düzeltmenizi öneririz.")
+                        issues.append(L.settings.health_issue_sync)
 
                 db_files = db.files.count_by_workspace(ws_id)
                 if db_files > 0:
-                    st.success(f"✅ Alan Durumu: {db_files} döküman başarıyla eşleşti.")
+                    st.success(L.settings.health_ok.format(db_files))
                 else:
-                    st.info("ℹ️ Bu alan henüz boş görünüyor.")
+                    st.info(L.settings.health_empty)
 
             for issue in issues:
                 st.error(issue)
-                if st.button("Uyumsuzluğu Otomatik Düzelt", use_container_width=True):
+                if st.button(L.settings.health_fix_btn, use_container_width=True):
                     st.session_state[SessionKeys.ACTIVE_SESSION_ID.value] = None
                     st.rerun()
 
@@ -160,19 +162,19 @@ def global_settings_dialog():
                 st.session_state.show_reset_confirm = False
 
             if not st.session_state.show_reset_confirm:
-                if st.button("⚠️ Sistemi Tamamen Sıfırla", use_container_width=True, type="secondary"):
+                if st.button(L.settings.reset_system, use_container_width=True, type="secondary"):
                     st.session_state.show_reset_confirm = True
                     st.rerun(scope="fragment")
             else:
-                st.error("DİKKAT: Tüm veritabanı, çalışma alanları ve yüklü belgeler silinecek! Bu işlem geri alınamaz.")
-                confirm = st.text_input("Onaylamak için 'SIFIRLA' yazın")
+                st.error(L.settings.reset_warning)
+                confirm = st.text_input(L.settings.reset_confirm_placeholder)
 
                 c1, c2 = st.columns(2)
-                if c1.button("İptal", use_container_width=True):
+                if c1.button(L.common.cancel, use_container_width=True):
                     st.session_state.show_reset_confirm = False
                     st.rerun(scope="fragment")
 
-                if c2.button("Sıfırlamayı Onayla", type="primary", use_container_width=True, disabled=confirm != "SIFIRLA"):
+                if c2.button(L.settings.reset_confirm_btn, type="primary", use_container_width=True, disabled=confirm != "SIFIRLA"):
                     from app.ui.callbacks import reset_system_callback
                     reset_system_callback()
                     st.session_state.show_reset_confirm = False
@@ -181,17 +183,21 @@ def global_settings_dialog():
     render_settings_fragment()
 
 
-@st.dialog("📚 Belge Kütüphanesi", width="large")
+@st.dialog("📚", width="large")
 def document_library_dialog(settings: dict):
+    """Dialog for document management within the active workspace."""
+    L = st.session_state.locale
+    st.markdown(f"### {L.common.dialog_library_title}")
     """Dialog for document management within the active workspace."""
     from app.ui.pages.library_page import render_library_page
     render_library_page(settings=settings, is_dialog=True)
 
 
-@st.dialog("💬 Sohbet Geçmişi", width="large")
+@st.dialog("💬", width="large")
 def chat_sessions_dialog():
     """Dialog for managing multiple chat threads in a workspace."""
     L = st.session_state.locale
+    st.markdown(f"### {L.common.dialog_chat_sessions_title}")
     active_ws_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
     if not active_ws_id:
         st.warning(L.workspace.no_active)
@@ -201,41 +207,41 @@ def chat_sessions_dialog():
     sessions = db.chat_sessions.get_by_workspace(active_ws_id)
     active_session_id = st.session_state.get(SessionKeys.ACTIVE_SESSION_ID.value)
 
-    st.markdown("### 🕒 Kayıtlı Oturumlar")
+    st.markdown(f"### {L.chat.sessions_title}")
 
     # "Varsayılan" oturum (session_id = None)
     default_cols = st.columns([4, 1, 1])
     is_default_active = active_session_id is None
-    default_cols[0].write("**Ana Akış**" + (" (Aktif)" if is_default_active else ""))
-    default_cols[0].caption("Genel sohbet geçmişi")
+    default_cols[0].write(f"**{L.chat.default_session_name}**" + (f" ({L.workspace.active})" if is_default_active else ""))
+    default_cols[0].caption(L.chat.default_session_desc)
 
     if not is_default_active:
-        if default_cols[1].button("Seç", key="sel_default"):
+        if default_cols[1].button(L.workspace.select, key="sel_default"):
             select_chat_session_callback(None)
             st.rerun()
     else:
-        default_cols[1].button("Aktif", key="act_default", disabled=True)
+        default_cols[1].button(L.workspace.active, key="act_default", disabled=True)
 
     st.divider()
 
     if not sessions:
-        st.info("Henüz özel bir oturum oluşturulmadı.")
+        st.info(L.chat.sessions_empty)
     else:
         for sess in sessions:
             cols = st.columns([4, 1, 1])
             is_active = sess.id == active_session_id
 
             with cols[0]:
-                st.write(f"**{sess.title}**" + (" (Aktif)" if is_active else ""))
-                st.caption(f"Son mesaj: {sess.last_message_at.strftime('%d.%m %H:%M')}")
+                st.write(f"**{sess.title}**" + (f" ({L.workspace.active})" if is_active else ""))
+                st.caption(L.chat.last_message.format(sess.last_message_at.strftime('%d.%m %H:%M')))
 
             with cols[1]:
                 if not is_active:
-                    if st.button("Seç", key=f"sess_sel_{sess.id}"):
+                    if st.button(L.workspace.select, key=f"sess_sel_{sess.id}"):
                         select_chat_session_callback(sess.id)
                         st.rerun()
                 else:
-                    st.button("Aktif", key=f"sess_act_{sess.id}", disabled=True)
+                    st.button(L.workspace.active, key=f"sess_act_{sess.id}", disabled=True)
 
             with cols[2]:
                 if st.button("🗑️", key=f"sess_del_{sess.id}"):
@@ -243,8 +249,8 @@ def chat_sessions_dialog():
                     st.rerun()
 
     st.divider()
-    st.markdown(f"### ➕ {L.chat.no_history}")
-    new_title = st.text_input(L.chat.sources_title, placeholder="Örn: Rapor Analizi")
+    st.markdown(f"### {L.chat.new_session}")
+    new_title = st.text_input(L.common.edit, placeholder=L.workspace.example_name)
     if st.button(L.common.save, use_container_width=True, type="primary"):
         if new_title:
             create_chat_session_callback(active_ws_id, new_title)

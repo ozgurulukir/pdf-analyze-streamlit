@@ -16,7 +16,8 @@ def render_workspace_selector(
     on_rename: Callable,
 ):
     """Render workspace selector in sidebar."""
-    st.markdown("### 📁 Çalışma Alanları")
+    L = st.session_state.locale
+    st.markdown(f"### {L.workspace.current_areas}")
 
     @st.fragment
     def render_workspaces_list():
@@ -29,7 +30,7 @@ def render_workspace_selector(
                 if is_active:
                     st.success("✅")
                 else:
-                    if st.button("📂", key=f"sel_{ws.id}", help="Seç"):
+                    if st.button("📂", key=f"sel_{ws.id}", help=L.workspace.select):
                         on_select(ws.id)
                         st.rerun()
             with col2:
@@ -39,14 +40,14 @@ def render_workspace_selector(
                 )
 
                 # Simple rename expander
-                with st.expander("📝 İsmi Değiştir", expanded=False):
+                with st.expander(f"📝 {L.workspace.rename}", expanded=False):
                     new_name = st.text_input(
-                        "Yeni İsim",
+                        L.workspace.rename_dialog_title,
                         value=ws.name,
                         key=f"rename_input_{ws.id}",
                         label_visibility="collapsed",
                     )
-                    if st.button("Güncelle", key=f"rename_btn_{ws.id}"):
+                    if st.button(L.common.update, key=f"rename_btn_{ws.id}"):
                         on_rename(ws.id, new_name)
                         st.rerun()
             with col3:
@@ -59,9 +60,9 @@ def render_workspace_selector(
     @st.fragment
     def render_create_workspace():
         # Create new workspace
-        with st.expander("➕ Yeni Çalışma Alanı", expanded=False):
-            new_name = st.text_input("İsim", key="new_workspace_name")
-            if st.button("Oluştur", key="create_workspace_btn"):
+        with st.expander(f"{L.workspace.new_workspace}", expanded=False):
+            new_name = st.text_input(L.workspace.name_placeholder, key="new_workspace_name")
+            if st.button(L.common.confirm, key="create_workspace_btn"):
                 if new_name.strip():
                     on_create(new_name)
                     st.rerun()
@@ -118,11 +119,11 @@ def render_file_card(
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
         btn_col1, btn_col2, btn_col3 = st.columns(3)
         with btn_col1:
-            if st.button("👁️ İzle", key=f"prev_{file.id}", use_container_width=True):
+            if st.button(f"👁️ {L.common.edit}", key=f"prev_{file.id}", use_container_width=True):
                 on_preview(file)
         with btn_col2:
             if st.button(
-                "🔄 Sync",
+                f"🔄 {L.library.sync_data}",
                 key=f"rev_{file.id}",
                 use_container_width=True,
                 disabled=file.status != "processed",
@@ -134,7 +135,7 @@ def render_file_card(
                 key=f"del_cont_{file.id}",
                 css_styles="button { background: rgba(239, 68, 68, 0.1) !important; color: #ef4444 !important; border: 1px solid rgba(239, 68, 68, 0.2) !important; }",
             ):
-                if st.button("🗑️ Sil", key=f"del_{file.id}", use_container_width=True):
+                if st.button(f"🗑️ {L.common.delete}", key=f"del_{file.id}", use_container_width=True):
                     on_delete(file.id)
                     st.rerun()
 
@@ -147,35 +148,36 @@ def render_file_list(
 ):
     """Render list of files in workspace."""
     if not files:
-        st.markdown("### 📄 Dosyalar (0)")
-        st.info("Henüz dosya yok. Dosya yükleyin.")
+        st.markdown(f"### {L.library.files_tab} (0)")
+        st.info(L.library.no_files)
         return
 
     # Wrap file list in an expander for better space management
-    with st.expander(f"📄 Mevcut Dosyalar ({len(files)})", expanded=True):
+    with st.expander(f"📄 {L.library.files_tab} ({len(files)})", expanded=True):
         for file in files:
             render_file_card(file, on_delete, on_revectorize, on_preview)
 
 
 def render_upload_zone(on_upload: Callable, allowed_types: list[str] | None = None):
     """Render file upload zone."""
-    st.markdown("### 📤 Dosya Yükle")
+    L = st.session_state.locale
+    st.markdown(f"### {L.library.upload_label}")
 
     if allowed_types is None:
         allowed_types = ["pdf", "txt", "docx", "html", "md"]
 
     uploaded_files = st.file_uploader(
-        "Dosya seçin",
+        L.library.upload_label,
         type=allowed_types,
         accept_multiple_files=True,
-        help="PDF, TXT, DOCX, HTML veya MD dosyaları",
+        help=L.library.upload_help,
         label_visibility="collapsed",
     )
 
     if uploaded_files:
-        st.write(f"{len(uploaded_files)} dosya seçildi")
+        st.write(L.library.listing_count.format(len(uploaded_files)))
 
-        if st.button("📤 Yükle ve İşle", type="primary", use_container_width=True):
+        if st.button(L.library.upload_label, type="primary", use_container_width=True):
             on_upload(uploaded_files)
 
         return uploaded_files
@@ -198,7 +200,8 @@ def render_workspace_modal(
         return
 
     with st.container():
-        st.markdown("### 📁 Çalışma Alanları")
+        L = st.session_state.locale
+        st.markdown(f"### {L.workspace.current_areas}")
 
         # List
         for ws in workspaces:
@@ -217,15 +220,16 @@ def render_workspace_modal(
         st.divider()
 
         # Create new
-        st.text_input("Yeni çalışma alanı", key="modal_new_workspace")
+        st.text_input(L.workspace.new_workspace, key="modal_new_workspace")
 
 
 def render_document_stats(
     files: list[FileMetadata], workspace_id: str, workspace_name: str
 ):
     """Render document statistics using native components."""
+    L = st.session_state.locale
     if not files:
-        st.warning("⚠️ Bu çalışma alanında henüz belge yok.")
+        st.warning(L.library.no_files_ws)
         return
 
     from app.core.container import get_chroma
@@ -236,15 +240,13 @@ def render_document_stats(
     processed = len([f for f in files if f.status == "processed"])
 
     with st.container(border=True):
-        st.markdown(f"**📊 ÇALIŞMA ALANI ÖZETİ: {workspace_name}**")
+        st.markdown(f"**{L.library.stats_label}: {workspace_name}**")
         c1, c2, c3 = st.columns(3)
-        c1.metric("Toplam Belge", len(files))
-        c2.metric("İşlenen", processed)
-        c3.metric("Vektör Sayısı", chunk_count)
+        c1.metric(L.analysis.total_docs, len(files))
+        c2.metric(L.analysis.processed, processed)
+        c3.metric(L.analysis.avg_size, chunk_count) # Vektör sayısı avg_size alanını ödünç alıyor veya yeni alan eklemeli
 
-        st.caption(f"Toplam Boyut: {total_size:.1f} KB")
+        st.caption(f"{L.library.file_size}: {total_size:.1f} KB")
 
     if chunk_count == 0 and processed > 0:
-        st.warning(
-            "⚠️ Belgeler işlenmiş görünüyor ama vektör veritabanı boş. Lütfen kütüphane sayfasından tekrar işlemeyi deneyin."
-        )
+        st.warning(L.settings.health_empty)

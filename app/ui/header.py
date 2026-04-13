@@ -123,13 +123,13 @@ def render_header() -> str:
 
                 with st.container(border=True):
                     # Status Headline
-                    status_text = "Bekleniyor..."
+                    status_text = L.jobs.waiting
                     if job.status == ProcessingStatus.RUNNING.value:
-                        status_text = f"🔄 İşleniyor: {job.current}/{job.total} dosya"
+                        status_text = L.jobs.processing.format(job.current, job.total)
                     elif job.status == ProcessingStatus.COMPLETED.value:
-                        status_text = "✅ Başarıyla Tamamlandı"
+                        status_text = L.jobs.completed
                     elif job.status == ProcessingStatus.FAILED.value:
-                        status_text = "❌ İşlem Başarısız"
+                        status_text = L.jobs.failed
 
                     _ = st.markdown(f"**{status_text}**")
                     _ = st.progress(progress_val)
@@ -137,13 +137,13 @@ def render_header() -> str:
                     # Details
                     msg = f"⚙️ {job.job_type} | %{job.progress:.0f}"
                     if job.status == ProcessingStatus.RUNNING.value:
-                         msg += " | Lütfen bekleyiniz..."
+                         msg += f" | {L.jobs.please_wait}"
                     _ = st.caption(msg)
 
                     if job.status == ProcessingStatus.FAILED.value and job.error_message:
-                        _ = st.error(f"Hata Detayı: {job.error_message}")
+                        _ = st.error(L.jobs.error_detail.format(job.error_message))
                     elif job.status == ProcessingStatus.COMPLETED.value:
-                        _ = st.success("Tüm belgeler işlendi.")
+                        _ = st.success(L.jobs.all_processed)
 
     render_job_progress()
 

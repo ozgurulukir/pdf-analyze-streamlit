@@ -27,7 +27,7 @@ def add_alert(message: str, type: str = "info") -> None:
     state.set("pending_toast", (message, icons.get(type, "ℹ️")))
 
 
-@handle_errors("Çalışma alanları yüklenirken bir hata oluştu")
+@handle_errors("messages.db_error")
 def load_workspaces() -> None:
     """Load workspaces into session state using cached query."""
     # Use cached database manager
@@ -42,7 +42,7 @@ def load_workspaces() -> None:
             state.active_workspace_id = active.id
 
 
-@handle_errors("Çalışma alanı oluşturulamadı", use_alert=True)
+@handle_errors("messages.db_error", use_alert=True)
 def create_workspace_callback(name: str) -> None:
     """Create a new workspace and its vector collection."""
     if not name.strip():
@@ -63,10 +63,11 @@ def create_workspace_callback(name: str) -> None:
     invalidate_workspace_cache(workspace.id)
 
     load_workspaces()
-    add_alert(f"Çalışma alanı oluşturuldu: {name}", "success")
+    L = st.session_state.locale
+    add_alert(L.messages.workspace_created.format(name), "success")
 
 
-@handle_errors("Çalışma alanı seçilemedi")
+@handle_errors("messages.db_error")
 def select_workspace_callback(workspace_id: str) -> None:
     """Switch the active workspace."""
     db = get_cached_database_manager()
@@ -76,7 +77,7 @@ def select_workspace_callback(workspace_id: str) -> None:
     state.active_session_id = None
 
 
-@handle_errors("Çalışma alanı adı değiştirilemedi")
+@handle_errors("messages.db_error")
 def rename_workspace_callback(workspace_id: str, new_name: str) -> None:
     """Rename an existing workspace."""
     if not new_name.strip():
@@ -93,10 +94,12 @@ def rename_workspace_callback(workspace_id: str, new_name: str) -> None:
         invalidate_workspace_cache(workspace_id)
 
         load_workspaces()
-        st.success(f"Çalışma alanı adı güncellendi: {new_name}")
+        load_workspaces()
+        L = st.session_state.locale
+        st.success(L.messages.workspace_created.format(new_name))
 
 
-@handle_errors("Çalışma alanı silinirken hata oluştu", use_alert=True)
+@handle_errors("messages.db_error", use_alert=True)
 def delete_workspace_callback(workspace_id: str) -> None:
     """Delete a workspace and all its associated vector data."""
     db = get_cached_database_manager()
@@ -113,10 +116,12 @@ def delete_workspace_callback(workspace_id: str) -> None:
             state.active_workspace_id = None
 
         load_workspaces()
-        add_alert("Çalışma alanı silindi.", "success")
+        load_workspaces()
+        L = st.session_state.locale
+        add_alert(L.common.success, "success")
 
 
-@handle_errors("Dosya yükleme işlemi başarısız oldu", use_alert=True)
+@handle_errors("messages.file_uploaded", use_alert=True)
 def upload_files_callback(
     uploaded_files: list, workspace: Workspace, settings: dict
 ) -> None:
@@ -126,8 +131,9 @@ def upload_files_callback(
 
     db = get_cached_database_manager()
     file_service = FileService(db)
+    L = st.session_state.locale
 
-    with st.spinner("Dosyalar işleniyor..."):
+    with st.spinner(L.common.loading):
         added_count, successes, errors = file_service.upload_files(
             uploaded_files, workspace, settings.get("embedding", {})
         )
@@ -143,7 +149,7 @@ def upload_files_callback(
         load_workspaces()
 
 
-@handle_errors("Dosya silinemedi", use_alert=True)
+@handle_errors("messages.db_error", use_alert=True)
 def delete_file_callback(file_id: str) -> None:
     """Remove a document record."""
     active_ws_id = state.active_workspace_id
@@ -158,14 +164,17 @@ def delete_file_callback(file_id: str) -> None:
     invalidate_file_cache(active_ws_id, file_id)
 
     load_workspaces()
-    add_alert("Dosya silindi.", "success")
+    load_workspaces()
+    L = st.session_state.locale
+    add_alert(L.common.success, "success")
 
 
-@handle_errors("Dizin işleme hatası", use_alert=True)
+@handle_errors("library.status_error", use_alert=True)
 def process_directory_callback(directory_path: str, workspace: Workspace) -> None:
     """Run directory scanner via FileService."""
     if not directory_path or not workspace:
-        st.error("Dizin yolu ve Workspace seçilmelidir.")
+        L = st.session_state.locale
+        st.error(L.workspace.no_active)
         return
 
     db = get_cached_database_manager()
@@ -181,7 +190,8 @@ def process_directory_callback(directory_path: str, workspace: Workspace) -> Non
         "ollama_url": state.get(SessionKeys.OLLAMA_URL),
     }
 
-    with st.spinner("Dizin taranıyor..."):
+    L = st.session_state.locale
+    with st.spinner(L.common.loading):
         added_count, successes, errors = file_service.process_directory(
             directory_path, workspace, settings
         )
@@ -197,7 +207,7 @@ def process_directory_callback(directory_path: str, workspace: Workspace) -> Non
         load_workspaces()
 
 
-@handle_errors("Sistem sıfırlanırken kritik bir hata oluştu", use_alert=True)
+@handle_errors("messages.db_error", use_alert=True)
 def reset_system_callback() -> None:
     """Perform a global system hard reset."""
     # 1. Clear all caches first
@@ -237,11 +247,12 @@ def reset_system_callback() -> None:
     for key in keys_to_reset:
         state.delete(key)
 
-    add_alert("Tüm sistem başarıyla sıfırlandı!", "success")
+    L = st.session_state.locale
+    add_alert(L.common.success, "success")
     load_workspaces()
 
 
-@handle_errors("Sohbet geçmişi temizlenemedi")
+@handle_errors("messages.db_error")
 def clear_chat_history_callback(workspace_id: str) -> None:
     """Clear chat history for a workspace and reset UI state."""
     db = get_cached_database_manager()
@@ -254,18 +265,20 @@ def clear_chat_history_callback(workspace_id: str) -> None:
     if state.get(SessionKeys.CHAT_HISTORY) is not None:
         state.set(SessionKeys.CHAT_HISTORY, [])
 
-    st.success("Sohbet geçmişi temizlendi!")
+    L = st.session_state.locale
+    st.success(L.common.success)
     st.rerun()
 
 
-@handle_errors("Yeni sohbet başlatılamadı")
+@handle_errors("messages.chat_init_failed")
 def create_chat_session_callback(workspace_id: str, title: str = "Yeni Sohbet") -> None:
     """Create a new chat session for a workspace."""
     db = get_cached_database_manager()
     session = ChatSession(workspace_id=workspace_id, title=title)
     db.chat_sessions.create(session)
     state.active_session_id = session.id
-    st.success(f"Yeni sohbet başlatıldı: {title}")
+    L = st.session_state.locale
+    st.success(L.messages.workspace_created.format(title))
     # Invalidate session cache
     from app.core.cache import invalidate_workspace_cache
     invalidate_workspace_cache(workspace_id)
@@ -277,7 +290,7 @@ def select_chat_session_callback(session_id: str | None) -> None:
     st.rerun()
 
 
-@handle_errors("Sohbet başlığı değiştirilemedi")
+@handle_errors("messages.db_error")
 def rename_chat_session_callback(session_id: str, new_title: str) -> None:
     """Rename an existing chat session."""
     if not new_title.strip():
@@ -287,21 +300,24 @@ def rename_chat_session_callback(session_id: str, new_title: str) -> None:
     if session:
         session.title = new_title
         db.chat_sessions.update(session)
-        st.success("Sohbet başlığı güncellendi.")
+        db.chat_sessions.update(session)
+        L = st.session_state.locale
+        st.success(L.common.success)
         st.rerun()
 
 
-@handle_errors("Sohbet oturumu silinemedi")
+@handle_errors("messages.db_error")
 def delete_chat_session_callback(session_id: str) -> None:
     """Delete a chat session."""
     db = get_cached_database_manager()
     db.chat_sessions.delete(session_id)
     if state.active_session_id == session_id:
         state.active_session_id = None
-    st.success("Sohbet oturumu silindi.")
+    L = st.session_state.locale
+    st.success(L.common.success)
 
 
-@handle_errors("Ayarlar kaydedilirken hata oluştu")
+@handle_errors("messages.db_error")
 def save_settings_callback() -> None:
     """Extract current settings from session state and persist to database."""
     db = get_cached_database_manager()
@@ -375,7 +391,7 @@ def on_embed_type_change_callback():
     save_settings_callback()
 
 
-@handle_errors("Bağlantı testi sırasında hata oluştu", use_alert=True)
+@handle_errors("messages.llm_error", use_alert=True)
 def test_connections_callback():
     """Test both LLM and Embedding connections with current settings."""
     from app.core.chroma import EmbeddingManager
@@ -383,8 +399,9 @@ def test_connections_callback():
     from app.core.rag import create_llm
 
     config = get_config()
+    L = st.session_state.locale
 
-    with st.spinner("Bağlantılar test ediliyor..."):
+    with st.spinner(L.common.loading):
         # 1. Test LLM
         try:
             llm = create_llm(
@@ -419,18 +436,19 @@ def test_connections_callback():
             embed_ok = False
 
         if llm_ok and embed_ok:
-            add_alert("Tüm bağlantılar başarıyla doğrulandı!", "success")
+            add_alert(L.common.success, "success")
         elif llm_ok:
-            add_alert("LLM bağlantısı başarılı, ancak Embedding hatası var.", "warning")
+            add_alert(f"{L.chat.title} OK, {L.settings.embed_tab} ERR", "warning")
         elif embed_ok:
-            add_alert("Embedding bağlantısı başarılı, ancak LLM hatası var.", "warning")
+            add_alert(f"{L.settings.embed_tab} OK, {L.chat.title} ERR", "warning")
 
 
-@handle_errors("Önbellek temizlenemedi")
+@handle_errors("messages.db_error")
 def clear_cache_callback() -> None:
     """Clear all caches from UI."""
     stats = clear_all_caches()
-    st.success(f"Önbellekler temizlendi! ({len(stats)} cache)")
+    L = st.session_state.locale
+    st.success(L.common.success)
 
 
 def get_cached_files(workspace_id: str) -> list:

@@ -47,7 +47,7 @@ def render_qa_card(qa, question_text=None):
                 source_names = []
                 for s in qa.sources:
                     if isinstance(s, dict):
-                        path = s.get("file", "Bilinmeyen")
+                        path = s.get("file", L.library.unknown)
                         name = path.split("/")[-1].split("\\")[-1]
                         source_names.append(name)
                     else:
@@ -75,7 +75,7 @@ def render_knowledge_page():
     active_ws_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
 
     if not active_ws_id:
-        st.info(f"💡 {L.library.no_files}")
+        st.info(f"💡 {L.workspace.no_active}")
         return
 
     # 1. Filters
@@ -94,7 +94,7 @@ def render_knowledge_page():
             selected_tags = st.multiselect(
                 L.knowledge.tag_filter_label,
                 options=sorted(all_tags),
-                placeholder="Etiket seçin...",
+                placeholder=L.knowledge.tag_filter_label,
                 key="kb_tags_filter"
             )
 
@@ -107,7 +107,7 @@ def render_knowledge_page():
     if selected_tags:
         filtered_qas = [qa for qa in filtered_qas if any(t in (qa.tags or []) for t in selected_tags)]
 
-    st.markdown(f"🔍 **{len(filtered_qas)}** Uzman Cevap")
+    st.markdown(L.library.listing_count.format(len(filtered_qas)))
 
     # 3. Render
     if filtered_qas:

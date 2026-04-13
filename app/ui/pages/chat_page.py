@@ -26,8 +26,9 @@ def render_source_cards(sources: list[object], key_suffix: str = "") -> None:
 
     # Process sources to get clean labels
     src_labels: list[str] = []
+    L: LocaleStrings = state.locale
     for s in sources:
-        src_path = cast(dict[str, object], s).get("file", "Bilinmeyen") if isinstance(s, dict) else str(s)
+        src_path = cast(dict[str, object], s).get("file", L.library.unknown) if isinstance(s, dict) else str(s)
         name = str(src_path).split("/")[-1].split("\\")[-1]
         src_labels.append(f"📄 {name}")
 
@@ -141,7 +142,7 @@ def render_chat_page(settings: dict[str, object]) -> None:
                                     answer=next_msg.content,
                                     tags=tags
                                 )
-                                _ = st.toast(f"{L.chat.kb_added_toast} Etiketler: {', '.join(tags)}", icon="✅")
+                                _ = st.toast(f"{L.chat.kb_added_toast} {L.messages.tags_label.format(', '.join(tags))}", icon="✅")
                         i += 2
                     else:
                         i += 1
@@ -172,13 +173,13 @@ def render_chat_page(settings: dict[str, object]) -> None:
             config = get_config()
 
             if not workspace_id:
-                _ = st.warning("⚠️ Lütfen üst menüden bir çalışma alanı seçin.")
+                _ = st.warning(f"⚠️ {L.workspace.no_active}")
             else:
                 try:
                     from app.ui.callbacks import add_alert
                     workspace = db.workspaces.get_by_id(workspace_id)
                     if not workspace:
-                        add_alert("❌ Çalışma alanı bulunamadı.", "error")
+                        add_alert(f"❌ {L.workspace.not_found}", "error")
                         st.rerun(scope="fragment")
 
                     chroma_path = cast(str, state.get(SessionKeys.CHROMA_PATH, config.CHROMA_PERSIST_DIR))
@@ -196,7 +197,7 @@ def render_chat_page(settings: dict[str, object]) -> None:
                         _ = st.markdown(f"**👤 {streaming_prompt}**")
                         st.divider()
 
-                        with st.status("🔍 İşleniyor...", expanded=True) as status:
+                        with st.status(f"🔍 {L.common.loading}", expanded=True) as status:
                             pass
 
                         response_placeholder = st.empty()
@@ -217,7 +218,7 @@ def render_chat_page(settings: dict[str, object]) -> None:
                             elif etype == "sources":
                                 sources = cast(list[object], content if isinstance(content, list) else [])
                             elif etype == "error" and content:
-                                status.update(label="❌ Hata", state="error")
+                                status.update(label=L.common.error, state="error")
                                 _ = st.toast(str(content), icon="❌")
 
                         _ = response_placeholder.markdown(full_response)
@@ -247,7 +248,7 @@ def render_chat_page(settings: dict[str, object]) -> None:
                 except Exception as e:
                     from app.ui.callbacks import add_alert
                     logger.error(f"Chat execution failed: {e}")
-                    add_alert(f"Sohbet başlatılamadı: {str(e)}", "error")
+                    add_alert(L.messages.chat_init_failed.format(str(e)), "error")
                     st.rerun(scope="fragment")
 
     # Render isolated component

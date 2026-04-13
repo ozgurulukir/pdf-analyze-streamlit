@@ -59,7 +59,7 @@ FILE_ICONS = {"pdf": "📕", "txt": "📄", "docx": "📘", "md": "📝", "html"
 def render_create_workspace_form():
     """Form content for creating a workspace."""
     L = st.session_state.locale
-    new_name = st.text_input(L.workspace.name_placeholder, placeholder="Örn: Hukuki Belgeler", key="inline_create_ws_name")
+    new_name = st.text_input(L.workspace.name_placeholder, placeholder=L.workspace.example_name, key="inline_create_ws_name")
     if st.button(L.common.confirm, type="primary", use_container_width=True, key="inline_create_ws_btn"):
         if new_name.strip():
             create_workspace_callback(new_name)
@@ -106,10 +106,10 @@ def delete_workspace_confirm_dialog(workspace_id, name):
 
 def render_file_card_visual(file, on_delete):
     """Render a premium file card using native border container."""
+    L = st.session_state.locale
     ext = (file.file_type or "").lower()
     file_icon = FILE_ICONS.get(ext, "📄")
     file_size_kb = file.size / 1024 if file.size else 0
-    L = st.session_state.locale
     status_config = get_status_config(L)
     status = status_config.get(file.status, status_config["pending"])
 
@@ -213,19 +213,19 @@ def render_library_page(settings: dict, is_dialog: bool = False):
                     c1.markdown("### ✅" if is_active else "### 📂")
                     with c2:
                         st.markdown(f"**{ws.name}**")
-                        st.caption(f"{ws.file_count} belge • Son işlem: {ws.last_modified.strftime('%d/%m/%Y')}")
+                        st.caption(L.library.last_action.format(ws.last_modified.strftime('%d/%m/%Y')))
 
                 with action_c:
                     sub1, sub2, sub3 = st.columns(3)
-                    if sub1.button("📂", key=f"sel_{ws.id}", help="Seç", use_container_width=True):
+                    if sub1.button("📂", key=f"sel_{ws.id}", help=L.workspace.select, use_container_width=True):
                         select_workspace_callback(ws.id)
                         st.rerun()
-                    if sub2.button("📝", key=f"ren_{ws.id}", help="Ad değiştir", use_container_width=True):
+                    if sub2.button("📝", key=f"ren_{ws.id}", help=L.workspace.rename, use_container_width=True):
                         if is_dialog:
                             st.session_state[f"show_ren_{ws.id}"] = not st.session_state.get(f"show_ren_{ws.id}", False)
                         else:
                             rename_workspace_dialog(ws.id, ws.name)
-                    if sub3.button("🗑️", key=f"del_{ws.id}", help="Sil", use_container_width=True):
+                    if sub3.button("🗑️", key=f"del_{ws.id}", help=L.common.delete, use_container_width=True):
                         if is_dialog:
                             st.session_state[f"show_del_{ws.id}"] = not st.session_state.get(f"show_del_{ws.id}", False)
                         else:
@@ -242,18 +242,18 @@ def render_library_page(settings: dict, is_dialog: bool = False):
 
     with tab_upload:
         if active_ws:
-            st.markdown(f"#### 📤 '{active_ws.name}' Alanına Yükle")
+            st.markdown(f"#### 📤 {L.library.upload_to.format(active_ws.name)}")
             render_upload_zone(
                 on_upload=lambda files: upload_files_callback(
                     files, active_ws, settings
                 )
             )
         else:
-            st.warning("Dosya yüklemek için önce bir çalışma alanı seçin.")
+            st.warning(L.library.select_ws_to_upload)
 
     with tab_files:
         if not active_ws:
-            st.info("Belgelerini listelemek için bir çalışma alanı seçin.")
+            st.info(L.library.select_ws_to_list)
         else:
 
             @st.fragment
@@ -263,7 +263,7 @@ def render_library_page(settings: dict, is_dialog: bool = False):
                 files = get_cached_files(active_ws.id)
 
                 if not files:
-                    st.info("Bu çalışma alanında henüz belge yok.")
+                    st.info(L.library.no_files_ws)
                 else:
                     # Filter & Actions bar
                     col_f, col_r = st.columns([3, 1])
@@ -271,7 +271,7 @@ def render_library_page(settings: dict, is_dialog: bool = False):
                         status_filter = st.selectbox(
                             L.library.status,
                             options=[
-                                "Tümü",
+                                L.library.status_all,
                                 "processed",
                                 "pending",
                                 "processing",
@@ -287,10 +287,10 @@ def render_library_page(settings: dict, is_dialog: bool = False):
 
                     filtered = (
                         files
-                        if status_filter == "Tümü"
+                        if status_filter == L.library.status_all
                         else [f for f in files if f.status == status_filter]
                     )
-                    st.caption(f"{len(filtered)} belge listeleniyor")
+                    st.caption(L.library.listing_count.format(len(filtered)))
                     st.divider()
 
                     cols = st.columns(2)
