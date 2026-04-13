@@ -131,7 +131,7 @@ class SettingsStrings(BaseModel):
     embed_tab: str = "🧠 Embedding"
     system_tab: str = "📁 Veri & Sistem"
     tools_tab: str = "🛠️ Araçlar"
-    reset_system: str = "⚠️ Sistemi Tamamen Sıfırla"
+    reset_system: str = "⚠️ Sistemi Sıfırla & Varsayılanları Yükle"
     clear_chat: str = "🗑️ Sohbeti Temizle"
     clear_cache: str = "🧹 Önbelleği Temizle"
     health_title: str = "🛠️ Sistem Sağlığı"
@@ -145,6 +145,9 @@ class SettingsStrings(BaseModel):
 
     # LLM Settings
     provider: str = "Sağlayıcı"
+    provider_ollama: str = "Yerel Ollama"
+    provider_cloud: str = "Ollama Cloud"
+    provider_custom: str = "Özel (OpenAI Compatible)"
     api_connection: str = "🔗 API Bağlantısı"
     base_url: str = "Giriş Noktası (Base URL)"
     api_key: str = "API Anahtarı"
@@ -180,14 +183,16 @@ class AnalysisStrings(BaseModel):
     header_caption: str = "Çalışma alanı istatistikleri ve geçmiş sorgular"
     summary_label: str = "📄 Özet"
     stats_tab: str = "📈 İstatistikler"
-    pref_tab: str = "🎯 Tercihler & Geçmiş"
+    pref_tab: str = "🎯 Prompt Tercihi"
     total_docs: str = "📄 Toplam Belge"
     processed: str = "✅ İşlenen"
     queued: str = "⏳ Kuyrukta"
     avg_size: str = "💾 Ort. Boyut"
     unique_sources: str = "📝 Özgün Kaynak"
-    pref_title: str = "⚖️ Tercihlerinizi Ayarlayın"
-    pref_subtitle: str = "Cevap tarzınızı özelleştirin"
+    pref_title: str = "⚖️ Prompt Yönetimi"
+    pref_subtitle: str = "Prompt parçalarını düzenleyin ve seçin"
+    prompt_label: str = "Prompt İçeriği"
+    prompt_include: str = "Sohbete Ekle"
     no_data: str = "Analiz edilecek veri bulunamadı."
     pref_conflict_detailed: str = "⚠️ Detaylı anlatım kapatıldı (Çelişki önlendi)."
     pref_conflict_concise: str = "⚠️ Kısa yanıt kapatıldı (Çelişki önlendi)."
@@ -331,7 +336,8 @@ EN_LOCALE = LocaleStrings(
         title="Settings",
         llm_tab="🤖 LLM Settings", embed_tab="🧠 Embedding",
         system_tab="📁 Data & System", tools_tab="🛠️ Tools",
-        reset_system="⚠️ Hard Reset System", clear_chat="🗑️ Clear Chat", clear_cache="🧹 Clear Cache",
+        reset_system="⚠️ Reset System & Load Defaults",
+        clear_chat="🗑️ Clear Chat", clear_cache="🧹 Clear Cache",
         health_title="🛠️ System Health",
         health_issue_sync="⚠️ Session/Workspace Mismatch! We recommend fixing this for database consistency.",
         health_ok="✅ Area Status: {} documents successfully synchronized.",
@@ -343,6 +349,9 @@ EN_LOCALE = LocaleStrings(
 
         # LLM Settings
         provider="Provider",
+        provider_ollama="Local Ollama",
+        provider_cloud="Ollama Cloud",
+        provider_custom="Custom (OpenAI Compatible)",
         api_connection="🔗 API Connection",
         base_url="Base URL",
         api_key="API Key",
@@ -375,10 +384,13 @@ EN_LOCALE = LocaleStrings(
         title="Analysis",
         header_caption="Workspace statistics and query history",
         summary_label="📄 Summary", stats_tab="📈 Statistics",
-        pref_tab="🎯 Preferences & History", total_docs="📄 Total Docs",
+        pref_tab="🎯 Prompt Preferences", total_docs="📄 Total Docs",
         processed="✅ Processed", queued="⏳ Queued", avg_size="💾 Avg. Size",
-        unique_sources="📝 Unique Sources", pref_title="⚖️ Adjustment Panel",
-        pref_subtitle="Customize your response style", no_data="No data found for analysis.",
+        unique_sources="📝 Unique Sources", pref_title="⚖️ Prompt Management",
+        pref_subtitle="Edit and select prompt fragments",
+        prompt_label="Prompt Content",
+        prompt_include="Include in Chat",
+        no_data="No data found for analysis.",
         pref_conflict_detailed="⚠️ Detailed mode disabled (Conflict prevented).",
         pref_conflict_concise="⚠️ Concise mode disabled (Conflict prevented).",
         stats_title="📈 Workspace Statistics",

@@ -14,6 +14,7 @@ class SessionKeys(StrEnum):
     SIDEBAR_OPEN = "sidebar_open"
     CURRENT_PAGE = "current_page"
     PREFERENCES = "preferences"
+    PROMPT_TEXTS = "prompt_texts"
 
     # LLM Settings
     LLM_MODEL = "llm_model"
@@ -128,3 +129,26 @@ class APIEndpoints:
     OLLAMA_EMBED = "/api/embeddings"
     OPENAI_CHAT = "/chat/completions"
     OPENAI_EMBEDDINGS = "/embeddings"
+
+
+# ===================
+# Default Prompts
+# ===================
+
+
+class DefaultPrompts:
+    """Default prompt fragments for response styles."""
+
+    CONCISE = "Lütfen cevabı mümkün olduğunca kısa ve öz tut. Gereksiz detaylardan kaçın."
+    DETAILED = "Lütfen cevabı detaylı, kapsamlı ve açıklayıcı bir şekilde sun. Önemli tüm noktaları ele al."
+    EXAMPLES = "Cevabı pekiştirmek için somut örnekler ver."
+    STEP_BY_STEP = "İşlemi veya açıklamayı adım adım, sıralı bir şekilde açıkla."
+
+    @classmethod
+    def get_defaults(cls) -> dict[str, str]:
+        return {
+            "concise": cls.CONCISE,
+            "detailed": cls.DETAILED,
+            "examples": cls.EXAMPLES,
+            "step_by_step": cls.STEP_BY_STEP,
+        }

@@ -3,14 +3,12 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, TypeVar, get_type_hints
+from typing import Any, get_type_hints
 
 from app.core.config import AppConfig
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
-
-T = TypeVar("T")
 
 
 class DependencyError(Exception):
@@ -49,7 +47,7 @@ class Container:
         self._dependencies: dict[str, Dependency] = {}
         self._singletons: dict[str, Any] = {}
 
-    def register(
+    def register[T](
         self,
         interface: type[T],
         factory: Callable[..., T] | None = None,
@@ -72,7 +70,7 @@ class Container:
         self._dependencies[name] = Dependency(factory=factory, singleton=singleton)
         logger.debug(f"Registered dependency: {name} (singleton={singleton})")
 
-    def register_instance(self, interface: type[T], instance: T) -> None:
+    def register_instance[T](self, interface: type[T], instance: T) -> None:
         """
         Register an existing instance.
 
@@ -87,7 +85,7 @@ class Container:
         self._singletons[name] = instance
         logger.debug(f"Registered instance: {name}")
 
-    def resolve(self, interface: type[T], *args, **kwargs) -> T:
+    def resolve[T](self, interface: type[T], *args, **kwargs) -> T:
         """
         Resolve a dependency.
 
@@ -139,7 +137,7 @@ class Container:
         type_hints = get_type_hints(func)
         return tuple(self.resolve(t) for t in type_hints.values())
 
-    def call(self, func: Callable[..., T], *args, **kwargs) -> T:
+    def call[T](self, func: Callable[..., T], *args, **kwargs) -> T:
         """
         Call a function with resolved dependencies.
 
@@ -293,12 +291,19 @@ _global_container: AppContainer | None = None
 
 
 def get_container() -> AppContainer:
-    """Get the global application container."""
+    """Get the global application container instance."""
     global _global_container
     if _global_container is None:
         _global_container = AppContainer()
         _global_container.configure()
     return _global_container
+
+
+def reset_container() -> None:
+    """Clear the global container and all singletons."""
+    global _global_container
+    _global_container = None
+    logger.warning("Global application container has been reset")
 
 
 def inject[T](func: Callable[..., T]) -> Callable[..., T]:

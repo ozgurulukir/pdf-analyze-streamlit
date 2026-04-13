@@ -36,15 +36,15 @@ def create_llm(
     # temperature logic handled by caller or via default from config if needed
     try:
         return ChatOpenAI(
-            openai_api_key=SecretStr(api_key) if api_key else None,
-            openai_api_base=base_url,
-            model_name=model,
+            api_key=SecretStr(api_key) if api_key else None,
+            base_url=base_url,
+            model=model,
             temperature=temperature,
             streaming=streaming,
         )
     except Exception as e:
         logger.error(f"LLM creation failed: {e}")
-        raise LLMError(f"Failed to create LLM: {e}")
+        raise LLMError(f"Failed to create LLM: {e}") from e
 
 
 class PromptTemplates:
@@ -239,28 +239,28 @@ class RAGChain:
     def _get_llm(self, streaming: bool = False) -> ChatOpenAI:
         try:
             return ChatOpenAI(
-                openai_api_key=SecretStr(self.llm_config.get("api_key", self.config.OLLAMA_API_KEY))
+                api_key=SecretStr(self.llm_config.get("api_key", self.config.OLLAMA_API_KEY))
                 if self.llm_config.get("api_key", self.config.OLLAMA_API_KEY) else None,
-                openai_api_base=self.llm_config.get("base_url", self.config.LLM_BASE_URL),
-                model_name=self.llm_config.get("model", self.config.LLM_MODEL),
+                base_url=self.llm_config.get("base_url", self.config.LLM_BASE_URL),
+                model=self.llm_config.get("model", self.config.LLM_MODEL),
                 temperature=self.llm_config.get("temperature", self.config.LLM_TEMPERATURE),
                 streaming=streaming,
             )
         except Exception as e:
             logger.error(f"LLM initialization failed: {e}")
-            raise LLMConnectionError(f"Failed to start LLM: {e}")
+            raise LLMConnectionError(f"Failed to start LLM: {e}") from e
 
     def _format_prefs(self, prefs: UserPreferences) -> str:
-        """Convert preference weights to a natural language response instruction."""
+        """Convert preference weights and custom prompt texts to instructions."""
         instructions = []
-        if prefs.weights.get("concise", 0) > 0.7:
-            instructions.append("Yanıtların çok kısa, öz ve net olsun.")
-        if prefs.weights.get("detailed", 0) > 0.7:
-            instructions.append("Mümkün olduğunca detaylı ve kapsamlı açıkla.")
-        if prefs.weights.get("examples", 0) > 0.7:
-            instructions.append("Açıklamalarını somut örneklerle destekle.")
-        if prefs.weights.get("step_by_step", 0) > 0.7:
-            instructions.append("Karmaşık konuları adım adım (liste şeklinde) anlat.")
+        prompt_texts = prefs.config.get("prompt_texts", {})
+
+        for tag, weight in prefs.weights.items():
+            if weight > 0.5:
+                # Use custom prompt text if available, fallback to basic instructions if missing
+                prompt_text = prompt_texts.get(tag)
+                if prompt_text:
+                    instructions.append(prompt_text)
 
         return (
             " ".join(instructions)

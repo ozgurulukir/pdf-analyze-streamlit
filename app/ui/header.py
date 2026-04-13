@@ -2,7 +2,7 @@ from typing import Any, cast
 
 import streamlit as st
 
-from app.core.constants import ProcessingStatus, SessionKeys
+from app.core.constants import ProcessingStatus
 from app.core.locales import LocaleStrings
 from app.core.logger import logger
 from app.ui.state import state
@@ -81,28 +81,13 @@ def render_header() -> str:
             if UIPages.KNOWLEDGE in nav_map:
                 st.switch_page(nav_map[UIPages.KNOWLEDGE])
 
-    # Settings dictionary for dialogs
-    settings: dict[str, Any] = {
-        "model": state.get(SessionKeys.LLM_MODEL),
-        "temperature": state.get(SessionKeys.LLM_TEMPERATURE),
-        "api_key": state.get(SessionKeys.OLLAMA_API_KEY),
-        "base_url": state.get(SessionKeys.LLM_BASE_URL),
-        "embedding": {
-            "use_huggingface": state.get(SessionKeys.USE_HUGGINGFACE, False),
-            "model_name": state.get(SessionKeys.HF_EMBED_MODEL) if state.get(SessionKeys.USE_HUGGINGFACE) else state.get(SessionKeys.EMBED_MODEL),
-            "ollama_url": state.get(SessionKeys.OLLAMA_URL),
-            "chunk_size": state.get(SessionKeys.CHUNK_SIZE),
-            "chunk_overlap": state.get(SessionKeys.CHUNK_OVERLAP),
-        }
-    }
-
     with c3:
         # Tools Switcher
         tool_cols = st.columns(3)
         if tool_cols[0].button("💬", key="trigger_chat_sess", help=L.chat.sources_title, use_container_width=True):
             chat_sessions_dialog()
         if tool_cols[1].button("📚", key="trigger_lib", help=L.library.title, use_container_width=True):
-            document_library_dialog(settings=settings)
+            document_library_dialog()
         if tool_cols[2].button("⚙️", key="trigger_set", help=L.settings.title, use_container_width=True):
             # Reset confirmation flag so it doesn't open in 'reset' mode
             state.set("show_reset_confirm", False)

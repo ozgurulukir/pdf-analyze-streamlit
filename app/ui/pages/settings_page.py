@@ -2,7 +2,6 @@
 
 import streamlit as st
 
-from app.ui.callbacks import reset_system_callback
 from app.ui.settings_components import (
     render_data_settings,
     render_embedding_settings,
@@ -42,19 +41,11 @@ def render_settings_page():
         ["🤖 LLM", "🔢 Embedding", "📁 Veri & Sistem"]
     )
 
-    settings = {}
-
     with tab_llm:
-        settings.update(render_llm_settings(key_prefix="pg_"))
+        render_llm_settings()
 
     with tab_embed:
-        settings.update(render_embedding_settings(key_prefix="pg_"))
+        render_embedding_settings()
 
     with tab_data:
-        settings.update(render_data_settings(key_prefix="pg_"))
-
-        # Execute Hard Reset if button clicked (from render_data_settings)
-        if settings.get("reset_system"):
-            reset_system_callback()
-
-    return settings
+        render_data_settings()

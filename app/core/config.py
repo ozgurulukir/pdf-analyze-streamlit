@@ -9,13 +9,13 @@ from dotenv import load_dotenv
 # Load .env
 load_dotenv()
 
-from app.core.logger import get_logger
+from app.core.logger import get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 
 
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, model_validator  # noqa: E402
+from pydantic_settings import BaseSettings, SettingsConfigDict  # noqa: E402
 
 
 @dataclass
@@ -91,15 +91,15 @@ class AppConfig(BaseSettings):
     DEBUG: bool = Field(default=True, alias="DEBUG")
 
     # --- LLM Settings ---
-    LLM_BASE_URL: str = Field(default="https://ollama.com/v1")
-    OLLAMA_API_KEY: str = Field(default="ollama")
+    LLM_BASE_URL: str = Field(default="https://ollama.com/v1", alias="REMOTE_OLLAMA_URL")
+    OLLAMA_API_KEY: str = Field(default="ollama", alias="LLM_API_KEY")
     LLM_MODEL: str = Field(default="deepseek-v3.1:671b-cloud")
     LLM_TEMPERATURE: float = Field(default=0.3)
     DEFAULT_LLM_PROVIDER: str = Field(default="ollama")
     CHAT_CACHE_TTL: int = Field(default=1800, description="Chat response cache TTL in seconds")
 
     # --- Embedding Settings ---
-    OLLAMA_BASE_URL: str = Field(default="http://localhost:11434")
+    OLLAMA_BASE_URL: str = Field(default="http://localhost:11434", alias="LOCAL_OLLAMA_URL")
     EMBED_MODEL: str = Field(default="nomic-embed-text")
     USE_HUGGINGFACE: bool = Field(default=False)
     HF_EMBED_MODEL: str = Field(default="sentence-transformers/all-MiniLM-L6-v2")
@@ -133,6 +133,14 @@ class AppConfig(BaseSettings):
     DEFAULT_PAGE: str = Field(default="💬 Chat")
     THEME: str = Field(default="dark")
     POLLING_INTERVAL_MS: int = Field(default=3000)
+
+    # Default prompt fragments
+    PROMPT_TEXTS: dict[str, str] = Field(default_factory=lambda: {
+        "concise": "Lütfen cevabı mümkün olduğunca kısa ve öz tut. Gereksiz detaylardan kaçın.",
+        "detailed": "Lütfen cevabı detaylı, kapsamlı ve açıklayıcı bir şekilde sun. Önemli tüm noktaları ele al.",
+        "examples": "Cevabı pekiştirmek için somut örnekler ver.",
+        "step_by_step": "İşlemi veya açıklamayı adım adım, sıralı bir şekilde açıkla.",
+    })
 
     # --- Security Settings ---
     RATE_LIMIT_ENABLED: bool = Field(default=False)
@@ -168,7 +176,7 @@ class AppConfig(BaseSettings):
     OLLAMA_CLOUD_URL: str = Field(default="https://ollama.com/v1")
     OPENAI_COMPATIBLE_DEFAULT: str = Field(default="https://api.openai.com/v1")
     MAX_CONTEXT_LENGTH: int = Field(default=4096)
-    
+
     # --- File Types & Mime (Moved from constants.py) ---
     ALLOWED_FILE_TYPES: list[str] = ["pdf", "txt", "docx", "html", "md", "pptx", "xlsx"]
     FILE_MIME_TYPES: dict[str, str] = Field(default={
@@ -207,7 +215,26 @@ class AppConfig(BaseSettings):
         # Force absolute paths relative to project root (parent of app/ folder)
         project_root = Path(__file__).parent.parent.parent.absolute()
 
-        # Ensure DATA_DIR is absolute
+        # --- Sanitize Critical Fields (Ensure they are never empty) ---
+        # If .env has OLLAMA_BASE_URL="" Pydantic loads it as "". We must restore defaults.
+        defaults = {
+            "LLM_BASE_URL": "https://ollama.com/v1",
+            "OLLAMA_BASE_URL": "http://localhost:11434",
+            "LLM_MODEL": "deepseek-v3.1:671b-cloud",
+            "EMBED_MODEL": "nomic-embed-text",
+            "DATA_DIR": "data",
+            "CHROMA_PERSIST_DIR": "data/chroma",
+        }
+        for field, default_val in defaults.items():
+            current_val = getattr(self, field, None)
+            if current_val is None or (isinstance(current_val, str) and current_val.strip() == ""):
+                setattr(self, field, default_val)
+                logger.debug(f"Restored default for {field}: {default_val}")
+
+        # Ensure DATA_DIR is absolute and never empty
+        if not self.DATA_DIR or self.DATA_DIR.strip() == "":
+            self.DATA_DIR = "data"
+
         if not Path(self.DATA_DIR).is_absolute():
             data_path = project_root / self.DATA_DIR
             self.DATA_DIR = str(data_path)
@@ -259,12 +286,31 @@ class AppConfig(BaseSettings):
             SessionKeys.CHROMA_PATH.value: "CHROMA_PERSIST_DIR",
             SessionKeys.CHUNK_SIZE.value: "CHUNK_SIZE",
             SessionKeys.CHUNK_OVERLAP.value: "CHUNK_OVERLAP",
+            SessionKeys.LAST_ENDPOINT_TYPE.value: "DEFAULT_LLM_PROVIDER",
+            SessionKeys.PROMPT_TEXTS.value: "PROMPT_TEXTS",
         }
 
         # Update attributes directly
         for session_key, attr_name in key_map.items():
-            if session_key in config_dict and config_dict[session_key] is not None:
-                val = config_dict[session_key]
+            # Check both session_key (lowercase) and attr_name (uppercase) for compatibility
+            # Use explicit None check to support falsy values like 0 or False
+            val = config_dict.get(session_key)
+            if val is None:
+                val = config_dict.get(attr_name)
+
+            if val is not None:
+                # Basic string cleaning
+                if isinstance(val, str):
+                    val = val.strip()
+
+                # CRITICAL: If value is an empty string for a field that shouldn't be empty,
+                # skip the update to allow code defaults to prevail.
+                if val == "" and attr_name in [
+                    "LLM_MODEL", "LLM_BASE_URL", "OLLAMA_BASE_URL",
+                    "EMBED_MODEL", "DATA_DIR", "CHROMA_PERSIST_DIR"
+                ]:
+                    continue
+
                 # Type conversion for numeric fields
                 if attr_name in ["LLM_TEMPERATURE", "CHUNK_SIZE", "CHUNK_OVERLAP"]:
                     try:

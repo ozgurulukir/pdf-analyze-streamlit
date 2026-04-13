@@ -79,7 +79,7 @@ def render_rename_workspace_form(workspace_id, current_name):
     L = st.session_state.locale
     new_name = st.text_input(L.workspace.rename_dialog_title, value=current_name, key=f"inline_ren_name_{workspace_id}")
     if st.button(L.common.update, type="primary", use_container_width=True, key=f"inline_ren_btn_{workspace_id}"):
-        if new_name.strip():
+        if new_name and new_name.strip():
             rename_workspace_callback(workspace_id, new_name)
             st.rerun()
 
@@ -133,7 +133,7 @@ def render_file_card_visual(file, on_delete):
             st.rerun()
 
 
-def render_library_page(settings: dict, is_dialog: bool = False):
+def render_library_page(is_dialog: bool = False):
     """Render the document library page with modern UI."""
     db = get_cached_database_manager()
     active_ws_id = st.session_state.get(SessionKeys.ACTIVE_WORKSPACE_ID.value)
@@ -245,7 +245,7 @@ def render_library_page(settings: dict, is_dialog: bool = False):
             st.markdown(f"#### 📤 {L.library.upload_to.format(active_ws.name)}")
             render_upload_zone(
                 on_upload=lambda files: upload_files_callback(
-                    files, active_ws, settings
+                    files, active_ws
                 )
             )
         else:

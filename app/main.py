@@ -6,15 +6,15 @@ root_path = str(Path(__file__).parent.parent)
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
-from app.core.config import AppConfig
-from app.core.constants import SessionKeys
-from app.core.logger import logger
-from app.core.router import resolve_page
-from app.ui.callbacks import load_workspaces
-from app.ui.header import render_header
-from app.ui.layout import apply_layout_styles
+from app.core.config import AppConfig  # noqa: E402
+from app.core.constants import SessionKeys  # noqa: E402
+from app.core.logger import logger  # noqa: E402
+from app.core.router import resolve_page  # noqa: E402
+from app.ui.callbacks import load_workspaces  # noqa: E402
+from app.ui.header import render_header  # noqa: E402
+from app.ui.layout import apply_layout_styles  # noqa: E402
 
 # Configure Streamlit page
 st.set_page_config(
@@ -28,103 +28,143 @@ st.set_page_config(
 def init_session_state() -> None:
     """
     Initialize session state variables with persisted values from DB or defaults.
-    Loads configuration from database and merges with application defaults.
+
+    Strategy:
+    - On a fresh run (after reset or first boot), '_state_initialized' is absent
+      → write ALL config defaults unconditionally so widgets never start empty.
+    - On a normal rerun, '_state_initialized' is present
+      → only fill in truly missing / conceptually-empty slots.
     """
     logger.info("Initializing session state")
 
+    # ── 1. Detect whether this is a fresh run (post-reset or first boot)
+    is_fresh_run = "_state_initialized" not in st.session_state
+
+    # ── 2. Load preferences from DB
     from app.core.exceptions import DatabaseError
     try:
-        from app.core.container import get_chroma, get_database
+        from app.core.container import get_database
         db = get_database()
-        chroma_manager = get_chroma()
         prefs = db.preferences.get()
     except DatabaseError as e:
         logger.error(f"Failed to load preferences from DB: {e}")
         from app.core.models import UserPreferences
         prefs = UserPreferences()
 
-    config = AppConfig()
+    # ── 3. Start with synchronized AppConfig from Container
+    from app.core.container import get_config
+    config_obj = get_config()
 
-    # Base defaults
+    # The container already synchronized config_obj with DB preferences during its own init.
+    # However, we ensure it matches the user's specific prefs object here if needed.
+    if prefs.config:
+        config_obj.sync_with_db(prefs.config)
+        logger.info("Global AppConfig synchronized with DB preferences during init_session_state")
+
     defaults = {
         SessionKeys.ACTIVE_WORKSPACE_ID.value: None,
         SessionKeys.WORKSPACES.value: [],
         SessionKeys.CHAT_HISTORY.value: [],
-        SessionKeys.SIDEBAR_OPEN.value: config.SIDEBAR_DEFAULT_OPEN,
-        SessionKeys.CURRENT_PAGE.value: config.DEFAULT_PAGE,
+        SessionKeys.SIDEBAR_OPEN.value: config_obj.SIDEBAR_DEFAULT_OPEN,
+        SessionKeys.CURRENT_PAGE.value: config_obj.DEFAULT_PAGE,
         SessionKeys.PREFERENCES.value: prefs,
-        # LLM defaults
-        SessionKeys.LLM_MODEL.value: config.LLM_MODEL,
-        SessionKeys.LLM_BASE_URL.value: config.LLM_BASE_URL,
-        SessionKeys.OLLAMA_API_KEY.value: config.OLLAMA_API_KEY,
-        SessionKeys.LLM_TEMPERATURE.value: config.LLM_TEMPERATURE,
-        SessionKeys.LAST_ENDPOINT_TYPE.value: config.DEFAULT_LLM_PROVIDER,
-        # Embedding defaults
-        SessionKeys.USE_HUGGINGFACE.value: config.USE_HUGGINGFACE,
-        SessionKeys.EMBED_MODEL.value: config.EMBED_MODEL,
-        SessionKeys.OLLAMA_URL.value: config.OLLAMA_BASE_URL,
-        SessionKeys.HF_EMBED_MODEL.value: config.HF_EMBED_MODEL,
-        # Data & System defaults
-        SessionKeys.DATA_DIR.value: config.DATA_DIR,
-        SessionKeys.CHROMA_PATH.value: config.CHROMA_PERSIST_DIR,
-        SessionKeys.CHUNK_SIZE.value: config.CHUNK_SIZE,
-        SessionKeys.CHUNK_OVERLAP.value: config.CHUNK_OVERLAP,
+        # LLM
+        SessionKeys.LLM_MODEL.value: config_obj.LLM_MODEL,
+        SessionKeys.LLM_BASE_URL.value: config_obj.LLM_BASE_URL,
+        SessionKeys.OLLAMA_API_KEY.value: config_obj.OLLAMA_API_KEY,
+        SessionKeys.LLM_TEMPERATURE.value: config_obj.LLM_TEMPERATURE,
+        SessionKeys.LAST_ENDPOINT_TYPE.value: config_obj.DEFAULT_LLM_PROVIDER,
+        # Embedding
+        SessionKeys.USE_HUGGINGFACE.value: config_obj.USE_HUGGINGFACE,
+        SessionKeys.EMBED_MODEL.value: config_obj.EMBED_MODEL,
+        SessionKeys.OLLAMA_URL.value: config_obj.OLLAMA_BASE_URL,
+        SessionKeys.HF_EMBED_MODEL.value: config_obj.HF_EMBED_MODEL,
+        # Data & System
+        SessionKeys.DATA_DIR.value: config_obj.DATA_DIR,
+        SessionKeys.CHROMA_PATH.value: config_obj.CHROMA_PERSIST_DIR,
+        SessionKeys.CHUNK_SIZE.value: config_obj.CHUNK_SIZE,
+        SessionKeys.CHUNK_OVERLAP.value: config_obj.CHUNK_OVERLAP,
         SessionKeys.THEME.value: "dark",
+        SessionKeys.OLLAMA_LLM_MODELS.value: [],
+        SessionKeys.OLLAMA_EMBED_MODELS.value: [],
+        "use_custom_llm_flag": False,
+        "_temp_embed_type": "hf" if config_obj.USE_HUGGINGFACE else "ollama",
     }
 
-    # Sync global config from DB via container
-    from app.core.container import get_config
-    config_obj = get_config()
-    if prefs.config:
-        config_obj.sync_with_db(prefs.config)
-        logger.info("Global AppConfig synchronized with DB preferences during init")
+    # ── 5. Model lists (UI selectbox source)
+    from app.core.config import get_ollama_llm_models, get_ollama_models
+    llm_models = get_ollama_llm_models(config_obj.OLLAMA_BASE_URL)
+    embed_models = get_ollama_models(config_obj.OLLAMA_BASE_URL)
 
-    # Finalize session state from synced config
-    defaults[SessionKeys.DATA_DIR.value] = config_obj.DATA_DIR
-    defaults[SessionKeys.CHROMA_PATH.value] = config_obj.CHROMA_PERSIST_DIR
-    defaults[SessionKeys.CHUNK_SIZE.value] = config_obj.CHUNK_SIZE
-    defaults[SessionKeys.CHUNK_OVERLAP.value] = config_obj.CHUNK_OVERLAP
-    defaults[SessionKeys.LLM_MODEL.value] = config_obj.LLM_MODEL
-    defaults[SessionKeys.LLM_BASE_URL.value] = config_obj.LLM_BASE_URL
-    defaults[SessionKeys.OLLAMA_API_KEY.value] = config_obj.OLLAMA_API_KEY
-    defaults[SessionKeys.LLM_TEMPERATURE.value] = config_obj.LLM_TEMPERATURE
-    defaults[SessionKeys.LAST_ENDPOINT_TYPE.value] = config_obj.DEFAULT_LLM_PROVIDER
-    defaults[SessionKeys.EMBED_MODEL.value] = config_obj.EMBED_MODEL
-    defaults[SessionKeys.USE_HUGGINGFACE.value] = config_obj.USE_HUGGINGFACE
-    defaults[SessionKeys.HF_EMBED_MODEL.value] = config_obj.HF_EMBED_MODEL
-    defaults[SessionKeys.OLLAMA_URL.value] = config_obj.OLLAMA_BASE_URL
+    # ── FALLBACK: Ensure lists are never empty so UI selectboxes don't break
+    if not llm_models:
+        llm_models = [{"label": config_obj.LLM_MODEL, "value": config_obj.LLM_MODEL}]
+    if not embed_models:
+        embed_models = [{"label": config_obj.EMBED_MODEL, "value": config_obj.EMBED_MODEL}]
 
-    # Locale / i18n
+    defaults[SessionKeys.OLLAMA_LLM_MODELS.value] = llm_models
+    defaults[SessionKeys.OLLAMA_EMBED_MODELS.value] = embed_models
+
+    # ── 6. Locale
     from app.core.locales import get_locale
     defaults["locale"] = get_locale("tr")
 
-    for key, value in defaults.items():
-        if key not in st.session_state or st.session_state[key] is None:
-            st.session_state[key] = value
+    # ── 7. Write to session state
+    # Config keys that must never hold an empty/whitespace string
+    config_keys = {
+        SessionKeys.LLM_MODEL.value,
+        SessionKeys.LLM_BASE_URL.value,
+        SessionKeys.OLLAMA_API_KEY.value,
+        SessionKeys.LAST_ENDPOINT_TYPE.value,
+        SessionKeys.EMBED_MODEL.value,
+        SessionKeys.OLLAMA_URL.value,
+        SessionKeys.HF_EMBED_MODEL.value,
+        SessionKeys.DATA_DIR.value,
+        SessionKeys.CHROMA_PATH.value,
+        SessionKeys.CHUNK_SIZE.value,
+        SessionKeys.CHUNK_OVERLAP.value,
+        "_temp_embed_type",
+    }
 
-    logger.debug(f"Session state initialized with {len(defaults)} keys")
+    for key, value in defaults.items():
+        if is_fresh_run:
+            # Post-reset or first boot: force-write everything so widgets
+            # never display stale/empty values from Streamlit's widget cache.
+            st.session_state[key] = value
+            logger.debug(f"[fresh] State forced for {key}")
+        else:
+            current = st.session_state.get(key)
+            is_missing = key not in st.session_state or current is None
+            is_empty = key in config_keys and isinstance(current, str) and current.strip() == ""
+            if is_missing or is_empty:
+                st.session_state[key] = value
+                logger.debug(f"[rerun] State filled for {key}")
+
+    # Mark as initialized so subsequent reruns skip force-write
+    st.session_state["_state_initialized"] = True
+    logger.debug(f"Session state initialized ({len(defaults)} keys, fresh={is_fresh_run})")
 
 
 # Define Navigation Pages (Global for st.switch_page compatibility)
 def show_chat():
     from app.core.constants import UIPages
-    resolve_page(UIPages.CHAT, {})
+    resolve_page(UIPages.CHAT)
 
 def show_docs():
     from app.core.constants import UIPages
-    resolve_page(UIPages.DOCUMENTS, {})
+    resolve_page(UIPages.DOCUMENTS)
 
 def show_analysis():
     from app.core.constants import UIPages
-    resolve_page(UIPages.ANALYSIS, {})
+    resolve_page(UIPages.ANALYSIS)
 
 def show_knowledge():
     from app.core.constants import UIPages
-    resolve_page(UIPages.KNOWLEDGE, {})
+    resolve_page(UIPages.KNOWLEDGE)
 
 def show_settings():
     from app.core.constants import UIPages
-    resolve_page(UIPages.SETTINGS, {})
+    resolve_page(UIPages.SETTINGS)
 
 def main() -> None:
     """

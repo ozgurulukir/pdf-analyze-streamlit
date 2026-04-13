@@ -10,7 +10,7 @@ from sqlalchemy import engine_from_config, pool
 config = context.config
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from app.core.config import AppConfig
+from app.core.config import AppConfig  # noqa: E402
 
 db_path = Path(AppConfig().DB_PATH).resolve()
 db_url = f"sqlite:///{db_path}"

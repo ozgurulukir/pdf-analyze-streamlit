@@ -21,7 +21,7 @@ def handle_errors(error_message: str = "İşlem sırasında bir hata oluştu.", 
                 raise
             except (DatabaseError, ChromaError) as e:
                 logger.error(f"Service error in {func.__name__}: {e}")
-                
+
                 # Dynamic translation lookup
                 final_msg = error_message
                 if "locale" in st.session_state:
@@ -44,7 +44,7 @@ def handle_errors(error_message: str = "İşlem sırasında bir hata oluştu.", 
                     st.error(msg)
             except Exception as e:
                 logger.error(f"Unexpected error in {func.__name__}: {e}", exc_info=True)
-                
+
                 final_msg = error_message
                 if "locale" in st.session_state:
                     L = st.session_state.locale

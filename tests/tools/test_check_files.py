@@ -5,7 +5,8 @@ sys.path.insert(0, ".")
 # Check file status and chunks
 import sqlite3
 
-from app.core.config import AppConfig
+from app.core.chroma import ChromaManager  # noqa: E402
+from app.core.config import AppConfig  # noqa: E402
 
 config = AppConfig()
 db_path = config.DB_PATH
@@ -41,9 +42,9 @@ for row in rows:
 
 # Check ChromaDB
 print("\nChromaDB collections:")
-from app.core.chroma import ChromaManager
 
-chroma = ChromaManager()
+
+chroma = ChromaManager(persist_directory=config.CHROMA_PERSIST_DIR)
 collections = chroma.client.list_collections()
 for coll in collections:
     print(f"  - {coll.name}: {coll.count()} documents")

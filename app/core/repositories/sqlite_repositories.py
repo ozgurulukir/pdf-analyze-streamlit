@@ -950,8 +950,8 @@ class SQLiteJobRepository(JobRepository):
                 # Include pending/running OR recently (last 60s) completed/failed
                 cursor.execute(
                     """
-                    SELECT * FROM jobs 
-                    WHERE status IN ('pending', 'running') 
+                    SELECT * FROM jobs
+                    WHERE status IN ('pending', 'running')
                     OR (status IN ('completed', 'failed') AND completed_at > ?)
                     ORDER BY created_at ASC
                 """,

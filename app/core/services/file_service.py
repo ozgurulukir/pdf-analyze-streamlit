@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from typing import Any
 
+from app.core.constants import ProcessingStatus
 from app.core.database import DatabaseManager
 from app.core.exceptions import AppError
 from app.core.jobs import create_embedding_job

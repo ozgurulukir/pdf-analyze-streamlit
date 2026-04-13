@@ -2,12 +2,12 @@
 # For more info: https://docs.astral.sh/ruff/settings/
 
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [lint]
 # Enable Pyflakes (F), pycodestyle (E, W), isort (I), and bugbear (B)
 select = ["F", "E", "W", "I", "B", "C4", "UP"]
-ignore = ["E501"] # Line length handled by line-length setting separately
+ignore = ["E501", "B904"] # Line length handled separately, B904 ignored as in pyproject.toml
 
 # Allow unused imports in __init__.py files
 [lint.per-file-ignores]

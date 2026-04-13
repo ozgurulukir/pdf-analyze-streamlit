@@ -7,62 +7,85 @@ from app.core.logger import logger
 
 
 def render_preference_adjuster(preferences):
-    """Render preference adjustment panel."""
+    """Render preference adjustment panel as Prompt Management."""
     L = st.session_state.locale
     if preferences is None:
         st.info(L.analysis.no_data)
         return
 
+    from app.core.constants import DefaultPrompts
+
     st.markdown(f"### {L.analysis.pref_title}")
     st.caption(L.analysis.pref_subtitle)
 
-    if not hasattr(preferences, "weights"):
-        preferences.weights = {
-            "concise": 0.5,
-            "detailed": 0.5,
-            "examples": 0.5,
-            "step_by_step": 0.5,
-        }
+    # Ensure structures exist
+    if not hasattr(preferences, "weights") or not preferences.weights:
+        preferences.weights = dict.fromkeys(DefaultPrompts.get_defaults().keys(), 0.5)
 
+    if "prompt_texts" not in preferences.config:
+        preferences.config["prompt_texts"] = DefaultPrompts.get_defaults()
 
-    def save_weight_change(tag_to_update):
+    def update_pref(tag, is_active, text):
         from app.core.container import get_database
         db = get_database()
-        is_active = st.session_state[f"pref_{tag_to_update}"]
 
-        # Çelişki kontrolü (Mutual Exclusion): Concise vs Detailed
+        # Mutual exclusion for Concise vs Detailed
         if is_active:
-            if tag_to_update == "concise":
-                if preferences.weights.get("detailed", 0) > 0.5:
-                    db.preferences.update_weights({"detailed": 0.0})
-                    preferences.weights["detailed"] = 0.0
-                    st.session_state["pref_detailed"] = False # Session state'i de güncelle!
-                    st.toast(L.analysis.pref_conflict_detailed)
-            elif tag_to_update == "detailed":
-                if preferences.weights.get("concise", 0) > 0.5:
-                    db.preferences.update_weights({"concise": 0.0})
-                    preferences.weights["concise"] = 0.0
-                    st.session_state["pref_concise"] = False # Session state'i de güncelle!
-                    st.toast(L.analysis.pref_conflict_concise)
+            if tag == "concise" and preferences.weights.get("detailed", 0) > 0.5:
+                preferences.weights["detailed"] = 0.0
+                if "pref_detailed" in st.session_state:
+                    st.session_state["pref_detailed"] = False
+                st.toast(L.analysis.pref_conflict_detailed)
+            elif tag == "detailed" and preferences.weights.get("concise", 0) > 0.5:
+                preferences.weights["concise"] = 0.0
+                if "pref_concise" in st.session_state:
+                    st.session_state["pref_concise"] = False
+                st.toast(L.analysis.pref_conflict_concise)
 
-        new_val = 1.0 if is_active else 0.0
-        preferences.weights[tag_to_update] = new_val
-        # DB'ye kaydet
-        db.preferences.update_weights({tag_to_update: new_val})
-        status_label = L.common.active_label if is_active else L.common.passive_label
-        st.toast(f"ℹ️ {tag_to_update.replace('_', ' ').title()} {status_label}.")
+        preferences.weights[tag] = 1.0 if is_active else 0.0
+        preferences.config["prompt_texts"][tag] = text
 
-        # Eğer bir çelişki çözüldüyse, diğer toggle'ın görsel olarak kapanması için sayfayı yenile
-        st.rerun()
+        # Persist to DB
+        db.preferences.save(preferences)
+        st.toast(L.common.success)
 
-    for tag, weight in preferences.weights.items():
-        st.toggle(
-            tag.replace("_", " ").title(),
-            value=bool(weight > 0.5),
-            key=f"pref_{tag}",
-            on_change=save_weight_change,
-            args=(tag,)
-        )
+    icons = {
+        "concise": "📝",
+        "detailed": "📖",
+        "examples": "💡",
+        "step_by_step": "🔢"
+    }
+
+    for tag, default_text in DefaultPrompts.get_defaults().items():
+        weight = preferences.weights.get(tag, 0.5)
+        current_text = preferences.config["prompt_texts"].get(tag, default_text)
+        icon = icons.get(tag, "📌")
+
+        with st.container(border=True):
+            header_col1, header_col2 = st.columns([4, 1])
+            with header_col1:
+                st.markdown(f"#### {icon} {tag.replace('_', ' ').title()}")
+            with header_col2:
+                is_active = st.checkbox(
+                    L.analysis.prompt_include,
+                    value=bool(weight > 0.5),
+                    key=f"pref_{tag}",
+                    label_visibility="collapsed"
+                )
+                if is_active:
+                    st.caption(f"✅ {L.analysis.prompt_include}")
+
+            new_text = st.text_area(
+                L.analysis.prompt_label,
+                value=current_text,
+                key=f"text_{tag}",
+                height=100,
+                help=f"{tag} için kullanılacak sistem promptu parçası."
+            )
+
+            # Save button for this specific fragment
+            if st.button(L.common.save, key=f"save_{tag}", use_container_width=True, type="secondary"):
+                update_pref(tag, is_active, new_text)
 
 
 def render_analysis_page():

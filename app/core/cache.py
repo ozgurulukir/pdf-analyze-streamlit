@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
 from threading import Lock
-from typing import Any, TypeVar
+from typing import Any
 
 import streamlit as st
 
@@ -16,7 +16,7 @@ from app.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-T = TypeVar("T")
+
 
 
 # ===================
@@ -227,7 +227,7 @@ def cached(
         ttl: Time-to-live for cached results
     """
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator[T](func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args, **kwargs):
             if key_func:

@@ -133,14 +133,13 @@ def create_router(
     return router
 
 
-def resolve_page(selected_page: str, settings: dict[str, Any]) -> None:
+def resolve_page(selected_page: str) -> None:
     """
     Resolve and render a page based on selection.
     This replaces the if/elif chain in main.py.
 
     Args:
         selected_page: Name of the page to render
-        settings: Settings dictionary to pass to pages
     """
     # Map page names to render functions
     # Using 'in' for partial matching to support icons in page names
@@ -148,11 +147,11 @@ def resolve_page(selected_page: str, settings: dict[str, Any]) -> None:
     if UIPages.CHAT in selected_page:
         from app.ui.pages.chat_page import render_chat_page
 
-        render_chat_page(settings)
+        render_chat_page()
     elif UIPages.DOCUMENTS in selected_page:
         from app.ui.pages.library_page import render_library_page
 
-        render_library_page(settings)
+        render_library_page()
     elif UIPages.ANALYSIS in selected_page:
         from app.ui.pages.analysis_page import render_analysis_page
 
@@ -164,9 +163,9 @@ def resolve_page(selected_page: str, settings: dict[str, Any]) -> None:
     elif UIPages.SETTINGS in selected_page:
         from app.ui.pages.settings_page import render_settings_page
 
-        settings.update(render_settings_page())
+        render_settings_page()
     else:
         # Default to chat
         from app.ui.pages.chat_page import render_chat_page
 
-        render_chat_page(settings)
+        render_chat_page()

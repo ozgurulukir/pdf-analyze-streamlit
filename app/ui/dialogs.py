@@ -104,13 +104,13 @@ def global_settings_dialog():
         )
 
         with tab1:
-            render_llm_settings(key_prefix="dlg_")
+            render_llm_settings()
 
         with tab2:
-            render_embedding_settings(key_prefix="dlg_")
+            render_embedding_settings()
 
         with tab3:
-            render_data_settings(key_prefix="dlg_")
+            render_data_settings()
 
         with tab4:
             L = st.session_state.locale
@@ -184,13 +184,12 @@ def global_settings_dialog():
 
 
 @st.dialog("📚", width="large")
-def document_library_dialog(settings: dict):
+def document_library_dialog():
     """Dialog for document management within the active workspace."""
     L = st.session_state.locale
     st.markdown(f"### {L.common.dialog_library_title}")
-    """Dialog for document management within the active workspace."""
     from app.ui.pages.library_page import render_library_page
-    render_library_page(settings=settings, is_dialog=True)
+    render_library_page(is_dialog=True)
 
 
 @st.dialog("💬", width="large")

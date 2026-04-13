@@ -13,7 +13,6 @@ AI tabanlı, modern ve modüler bir belge analiz uygulaması. Streamlit, LangCha
 - 🎨 **Premium UI**: Streamlit 1.40+ native bileşenleri (dialog, fragment, popover, status, pills) ile optimize edilmiş ve `@st.fragment` ile modülerleştirilmiş kullanıcı deneyimi.
 - ⚙️ **Veritabanı Yönetimi**: **Alembic** ile otomatik şema migrasyonları (Zero-Config startup).
 
-
 ## 🏗️ Mimari Yapı
 
 Uygulama, sürdürülebilirlik ve tip güvenliği için dikey katmanlı, **Repository Pattern** tabanlı modern bir mimari kullanır:
@@ -24,7 +23,7 @@ Uygulama, sürdürülebilirlik ve tip güvenliği için dikey katmanlı, **Repos
   - **Pydantic v2 Config & i18n**: Tüm uygulama yapılandırması ve yerelleştirme metinleri tip güvenliği sağlayan modeller ile merkezi olarak yönetilir.
   - **Background Jobs**: Uzun süreli belge işleme süreçleri için iş kuyruğu yönetimi.
 - **Service Layer**: İş mantığı, asenkron sohbet servisleri ve belge işleme boru hatları (pipelines).
-- **UI Layer**: 
+- **UI Layer**:
   - **State Management**: Merkezi `AppState` yöneticisi ile tip güvenli `st.session_state` erişimi.
   - **Error Handling**: Merkezi `@handle_errors` dekoratörü ile standartlaştırılmış UI hata yönetimi.
   - **Modular Components**: `@st.fragment` ile izole edilmiş hızlı arayüz bileşenleri.

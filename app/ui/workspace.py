@@ -77,6 +77,7 @@ def render_file_card(
     on_preview: Callable,
 ):
     """Render a premium file card."""
+    L = st.session_state.locale
     from streamlit_extras.stylable_container import stylable_container
 
     # Status styling
@@ -147,6 +148,7 @@ def render_file_list(
     on_preview: Callable,
 ):
     """Render list of files in workspace."""
+    L = st.session_state.locale
     if not files:
         st.markdown(f"### {L.library.files_tab} (0)")
         st.info(L.library.no_files)
@@ -172,12 +174,13 @@ def render_upload_zone(on_upload: Callable, allowed_types: list[str] | None = No
         accept_multiple_files=True,
         help=L.library.upload_help,
         label_visibility="collapsed",
+        key="main_file_uploader" # Stable key
     )
 
     if uploaded_files:
         st.write(L.library.listing_count.format(len(uploaded_files)))
 
-        if st.button(L.library.upload_label, type="primary", use_container_width=True):
+        if st.button(L.library.upload_label, type="primary", use_container_width=True, key="main_upload_btn"):
             on_upload(uploaded_files)
 
         return uploaded_files
