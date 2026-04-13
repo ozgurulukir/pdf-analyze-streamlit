@@ -1,7 +1,5 @@
-"""Service layer for chat and RAG operations with cache integration."""
-
 from collections.abc import Generator
-from typing import Any
+from typing import Any, cast
 
 from app.core.cache import (
     cached_chroma_query,
@@ -71,7 +69,7 @@ class ChatService:
         else:
             self.embedding = embedding
 
-        self._llm_config: dict[str, Any] = {}
+        self._llm_config: dict[str, object] = {}
         self._workspace_id: str | None = None
 
     def configure_embedding(
@@ -110,20 +108,22 @@ class ChatService:
 
     def get_cached_embedding(self, text: str) -> list[float]:
         """
-        Get embedding for text with caching.
-
-        Args:
-            text: Text to embed
+        Get embedding for text, using cache if enabled.
 
         Returns:
             List of floats representing the embedding vector
         """
+        if self.embedding is None:
+            raise AppError("Embedding manager not initialized")
+
         if not self.use_cache:
-            return self.embedding.get_query_embedding(text)
+            emb: Any = self.embedding.get_query_embedding(text)
+            return cast(list[float], emb)
 
         # Use cached embedding
         text_hash_key = text_hash(text)
-        return cached_get_embedding(text_hash_key, text, self.embedding)
+        result: Any = cached_get_embedding(text_hash_key, text, self.embedding)
+        return cast(list[float], result)
 
     def get_cached_chroma_query(
         self,
@@ -131,7 +131,7 @@ class ChatService:
         workspace_name: str,
         query_embedding: list[float],
         n_results: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         """
         Perform cached ChromaDB similarity search.
 
@@ -145,6 +145,9 @@ class ChatService:
             Dict with documents, distances, and metadatas
         """
         n_results = n_results or self.config.DEFAULT_RETRIEVER_K
+        if self.chroma is None:
+             raise ChromaError("Chroma manager not initialized")
+
         if not self.use_cache:
             docs, distances, metadatas = self.chroma.query(
                 workspace_id=workspace_id,
@@ -186,6 +189,8 @@ class ChatService:
         """
         try:
             # Check LLM response cache first
+            llm_cache = None
+            cache_key = ""
             if self.use_cache:
                 llm_cache = get_llm_response_cache()
                 cache_key = f"{workspace.id}_{text_hash(question)}"
@@ -200,18 +205,22 @@ class ChatService:
                     return
 
             # Configure embedding if settings changed
-            embedding_config = llm_config.get("embedding", {})
+            embedding_config = cast(dict[str, object], llm_config.get("embedding", {}))
             if embedding_config:
                 self.configure_embedding(
-                    use_huggingface=embedding_config.get("use_huggingface", False),
-                    ollama_model=embedding_config.get("model", "nomic-embed-text"),
-                    ollama_url=embedding_config.get(
+                    use_huggingface=cast(bool, embedding_config.get("use_huggingface", False)),
+                    ollama_model=cast(str, embedding_config.get("model", "nomic-embed-text")),
+                    ollama_url=cast(str, embedding_config.get(
                         "ollama_url", "http://localhost:11434"
-                    ),
-                    hf_model=embedding_config.get(
+                    )),
+                    hf_model=cast(str, embedding_config.get(
                         "hf_model", "sentence-transformers/all-MiniLM-L6-v2"
-                    ),
+                    )),
                 )
+
+            # Ensure managers are initialized
+            if self.db is None or self.chroma is None or self.embedding is None:
+                raise AppError("Sistem bileşenleri başlatılamadı (DB/Chroma/Embedding)")
 
             # Initialize RAG chain with required components
             rag_chain = RAGChain(
@@ -221,6 +230,7 @@ class ChatService:
                 llm_config=llm_config,
                 workspace_id=workspace.id,
                 session_id=session_id,
+                config=self.config,
             )
 
             # Collect response for caching
@@ -232,7 +242,7 @@ class ChatService:
                 yield event
 
             # Cache the complete response
-            if self.use_cache and full_response:
+            if self.use_cache and full_response and llm_cache and cache_key:
                 llm_cache.set(
                     cache_key, full_response, ttl=self.config.CHAT_CACHE_TTL
                 )
@@ -250,7 +260,7 @@ class ChatService:
 
     def get_chat_history(
         self, workspace_id: str, limit: int | None = None
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, object]]:
         """
         Get chat history for a workspace with caching.
 
@@ -263,10 +273,10 @@ class ChatService:
         """
         limit = limit or self.config.DEFAULT_CHAT_LIMIT
         if self.use_cache:
-            return cached_get_messages(workspace_id, limit)
+            return cast(list[dict[str, object]], cached_get_messages(workspace_id, limit))
         else:
             messages = self.db.messages.get_by_workspace(workspace_id, limit=limit)
-            return [m.to_dict() if hasattr(m, "to_dict") else m for m in messages]
+            return [m.to_dict() if hasattr(m, "to_dict") else cast(dict[str, object], m) for m in messages]
 
     def clear_workspace_history(self, workspace_id: str) -> None:
         """
@@ -288,7 +298,7 @@ class ChatService:
             logger.error(f"Failed to clear history for workspace {workspace_id}: {e}")
             raise
 
-    def get_workspace_stats(self, workspace_id: str) -> dict[str, Any]:
+    def get_workspace_stats(self, workspace_id: str) -> dict[str, object]:
         """
         Get statistics for a workspace with caching.
 

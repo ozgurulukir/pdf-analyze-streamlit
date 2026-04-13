@@ -267,8 +267,8 @@ def create_chat_session_callback(workspace_id: str, title: str = "Yeni Sohbet") 
     state.active_session_id = session.id
     st.success(f"Yeni sohbet başlatıldı: {title}")
     # Invalidate session cache
-    from app.core.cache import invalidate_session_cache
-    invalidate_session_cache(workspace_id)
+    from app.core.cache import invalidate_workspace_cache
+    invalidate_workspace_cache(workspace_id)
 
 
 def select_chat_session_callback(session_id: str | None) -> None:
@@ -378,12 +378,12 @@ def on_embed_type_change_callback():
 @handle_errors("Bağlantı testi sırasında hata oluştu", use_alert=True)
 def test_connections_callback():
     """Test both LLM and Embedding connections with current settings."""
-    from app.core.rag import create_llm
     from app.core.chroma import EmbeddingManager
     from app.core.container import get_config
-    
+    from app.core.rag import create_llm
+
     config = get_config()
-    
+
     with st.spinner("Bağlantılar test ediliyor..."):
         # 1. Test LLM
         try:

@@ -120,7 +120,7 @@ def render_file_card_visual(file, on_delete):
             st.markdown(f"**{file.original_name}**")
             # Using st.pills for status would be cool but here labels are fixed
             st.caption(f"{status['icon']} {status['label']} • {ext.upper()} • {file_size_kb:.1f} KB")
-            
+
             # Show error message if processing failed
             if file.status == "error" and file.error_message:
                 st.error(f"⚠️ {file.error_message}")
@@ -207,7 +207,7 @@ def render_library_page(settings: dict, is_dialog: bool = False):
             is_active = active_ws and ws.id == active_ws.id
             with st.container(border=True):
                 main_c, action_c = st.columns([0.7, 0.3], vertical_alignment="center")
-                
+
                 with main_c:
                     c1, c2 = st.columns([0.1, 0.9])
                     c1.markdown("### ✅" if is_active else "### 📂")
@@ -230,7 +230,7 @@ def render_library_page(settings: dict, is_dialog: bool = False):
                             st.session_state[f"show_del_{ws.id}"] = not st.session_state.get(f"show_del_{ws.id}", False)
                         else:
                             delete_workspace_confirm_dialog(ws.id, ws.name)
-                
+
                 # Inline forms for dialog mode
                 if is_dialog:
                     if st.session_state.get(f"show_ren_{ws.id}", False):

@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.core.constants import FileTypes, ProcessingStatus
+from app.core.constants import ProcessingStatus
 
 
 def generate_id() -> str:
@@ -85,8 +85,11 @@ class FileMetadataModel(BaseModel):
     @classmethod
     def validate_file_type(cls, v: str) -> str:
         """Validate file type is allowed."""
-        if v and not FileTypes.is_allowed(v):
-            raise ValueError(f"File type '{v}' is not allowed")
+        if v:
+            from app.core.container import get_config
+            config = get_config()
+            if not config.is_file_type_allowed(v):
+                raise ValueError(f"File type '{v}' is not allowed")
         return v
 
     @field_validator("size")

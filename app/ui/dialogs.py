@@ -61,8 +61,9 @@ def manage_workspaces_dialog():
                 with st.expander(L.common.edit):
                     new_name = st.text_input(L.common.edit, value=ws.name, key=f"ren_input_{ws.id}")
                     if st.button(L.common.update, key=f"ren_btn_{ws.id}", use_container_width=True):
-                        rename_workspace_callback(ws.id, new_name)
-                        st.rerun()
+                        if new_name:
+                            rename_workspace_callback(ws.id, new_name)
+                            st.rerun()
                 st.caption(
                     f"Blok: {ws.file_count} belge | Güncelleme: {ws.last_modified.strftime('%d.%m.%Y %H:%M')}"
                 )
@@ -175,7 +176,7 @@ def global_settings_dialog():
                     from app.ui.callbacks import reset_system_callback
                     reset_system_callback()
                     st.session_state.show_reset_confirm = False
-                    st.rerun(scope="app") 
+                    st.rerun(scope="app")
 
     render_settings_fragment()
 

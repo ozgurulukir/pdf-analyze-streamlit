@@ -1,0 +1,20 @@
+# Ruff configuration file
+# For more info: https://docs.astral.sh/ruff/settings/
+
+line-length = 100
+target-version = "py311"
+
+[lint]
+# Enable Pyflakes (F), pycodestyle (E, W), isort (I), and bugbear (B)
+select = ["F", "E", "W", "I", "B", "C4", "UP"]
+ignore = ["E501"] # Line length handled by line-length setting separately
+
+# Allow unused imports in __init__.py files
+[lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

@@ -105,17 +105,6 @@ class DBColumns:
     FILE_TAGS = "tags"
 
 
-# ===================
-# UI Constants
-# ===================
-
-
-class UIConstants:
-    """UI related constants."""
-
-    DEFAULT_PAGINATION_LIMIT = 20
-
-
 class UIPages:
     """Page identifiers."""
 
@@ -124,38 +113,6 @@ class UIPages:
     ANALYSIS = "Analiz"
     KNOWLEDGE = "Bilgi Bankası"
     SETTINGS = "Ayarlar"
-
-
-class UIPlaceholders:
-    """UI placeholder text."""
-
-    CHAT_PLACEHOLDER = "Mesajınızı yazın..."
-    SEARCH_PLACEHOLDER = "Dosya ara..."
-    UPLOAD_PLACEHOLDER = "Dosya yüklemek için sürükleyin veya tıklayın"
-
-
-class UIColors:
-    """UI color constants."""
-
-    PRIMARY = "#FF4B4B"
-    SECONDARY = "#FF8C00"
-    SUCCESS = "#28A745"
-    WARNING = "#FFC107"
-    ERROR = "#DC3545"
-    INFO = "#17A2B8"
-
-
-# ===================
-# Provider Constants
-# ===================
-
-
-class ProviderConstants:
-    """Provider specific constants."""
-
-    OLLAMA_LOCAL_URL = "http://localhost:11434"
-    OLLAMA_CLOUD_URL = "https://ollama.com/v1"
-    OPENAI_COMPATIBLE_DEFAULT = "https://api.openai.com/v1"
 
 
 # ===================
@@ -171,70 +128,3 @@ class APIEndpoints:
     OLLAMA_EMBED = "/api/embeddings"
     OPENAI_CHAT = "/chat/completions"
     OPENAI_EMBEDDINGS = "/embeddings"
-
-
-# ===================
-# RAG Constants
-# ===================
-
-
-class RAGDefaults:
-    """RAG default settings."""
-
-    MAX_CONTEXT_LENGTH = 4096
-    MAX_CHUNK_LENGTH = 2000
-
-
-# ===================
-# File Type Constants
-# ===================
-
-
-class FileTypes:
-    """Supported file types."""
-
-    ALLOWED_EXTENSIONS: list[str] = ["pdf", "txt", "docx", "html", "md", "pptx", "xlsx"]
-    MIME_TYPES: dict[str, str] = {
-        "pdf": "application/pdf",
-        "txt": "text/plain",
-        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "html": "text/html",
-        "md": "text/markdown",
-    }
-
-    @classmethod
-    def is_allowed(cls, extension: str) -> bool:
-        """Check if file extension is allowed."""
-        return extension.lower() in cls.ALLOWED_EXTENSIONS
-
-
-# ===================
-# Error Messages
-# ===================
-
-
-class ErrorMessages:
-    """Standardized error messages."""
-
-    FILE_TOO_LARGE = "Dosya boyutu çok büyük. Maksimum {} MB."
-    INVALID_FILE_TYPE = "Geçersiz dosya tipi. İzin verilen tipler: {}"
-    DATABASE_ERROR = "Veritabanı hatası: {}"
-    LLM_ERROR = "LLM hatası: {}"
-    CHROMA_ERROR = "ChromaDB hatası: {}"
-    FILE_NOT_FOUND = "Dosya bulunamadı: {}"
-    WORKSPACE_NOT_FOUND = "Çalışma alanı bulunamadı: {}"
-    INVALID_INPUT = "Geçersiz giriş: {}"
-
-
-# ===================
-# Success Messages
-# ===================
-
-
-class SuccessMessages:
-    """Standardized success messages."""
-
-    FILE_UPLOADED = "Dosya başarıyla yüklendi: {}"
-    WORKSPACE_CREATED = "Çalışma alanı oluşturuldu: {}"
-    FILE_PROCESSED = "Dosya işlendi: {}"
-    MESSAGE_SENT = "Mesaj gönderildi"

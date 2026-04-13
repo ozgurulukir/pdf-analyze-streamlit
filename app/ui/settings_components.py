@@ -1,5 +1,3 @@
-from typing import Any
-
 import streamlit as st
 
 from app.core.config import AppConfig, get_ollama_llm_models
@@ -12,7 +10,7 @@ from app.ui.callbacks import (
 )
 
 
-def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
+def render_llm_settings(key_prefix: str = "") -> None:
     """Render LLM settings using native components."""
     config = AppConfig()
     current_type = st.session_state.get(
@@ -34,14 +32,12 @@ def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
     st.markdown("**🔗 API Bağlantısı**")
     st.text_input(
         "Giriş Noktası (Base URL)",
-        value=st.session_state.get(SessionKeys.LLM_BASE_URL.value, ""),
         key=SessionKeys.LLM_BASE_URL.value,
         on_change=save_settings_callback,
     )
     st.text_input(
         "API Anahtarı",
         type="password",
-        value=st.session_state.get(SessionKeys.OLLAMA_API_KEY.value, ""),
         key=SessionKeys.OLLAMA_API_KEY.value,
         on_change=save_settings_callback,
     )
@@ -53,9 +49,8 @@ def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
     )
 
     if use_custom:
-        llm_model = st.text_input(
+        st.text_input(
             "Model Adı",
-            value=st.session_state.get(SessionKeys.LLM_MODEL.value, ""),
             key=SessionKeys.LLM_MODEL.value,
             on_change=save_settings_callback,
         )
@@ -69,7 +64,7 @@ def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
         options = [m["value"] for m in st.session_state.ollama_llm_models]
         curr = st.session_state.get(SessionKeys.LLM_MODEL.value)
         idx = options.index(curr) if curr in options else 0
-        llm_model = st.selectbox(
+        st.selectbox(
             "Model Seçin",
             options=options,
             index=idx,
@@ -81,8 +76,7 @@ def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
         "Temperature (Yaratıcılık)",
         0.0,
         1.0,
-        float(st.session_state.get(SessionKeys.LLM_TEMPERATURE.value, config.LLM_TEMPERATURE)),
-        0.1,
+        step=0.1,
         key=SessionKeys.LLM_TEMPERATURE.value,
         on_change=save_settings_callback,
     )
@@ -90,9 +84,7 @@ def render_llm_settings(key_prefix: str = "") -> dict[str, Any]:
     if st.button("🔌 Bağlantıyı Test Et", key=f"{key_prefix}test_conn", use_container_width=True, on_click=test_connections_callback):
         pass
 
-    return {"model": llm_model}
-
-def render_embedding_settings(key_prefix: str = "") -> dict[str, Any]:
+def render_embedding_settings(key_prefix: str = "") -> None:
     """Render embedding settings using modern components."""
     with st.container(border=True):
         from app.core.container import get_config
@@ -108,22 +100,19 @@ def render_embedding_settings(key_prefix: str = "") -> dict[str, Any]:
         )
 
         if use_hf:
-            model = st.text_input(
+            st.text_input(
                 "HF Model",
-                value=st.session_state.get(SessionKeys.HF_EMBED_MODEL.value, ""),
                 on_change=save_settings_callback,
                 key=SessionKeys.HF_EMBED_MODEL.value,
             )
         else:
-            url = st.text_input(
+            st.text_input(
                 "Ollama URL",
-                value=st.session_state.get(SessionKeys.OLLAMA_URL.value, ""),
                 on_change=save_settings_callback,
                 key=SessionKeys.OLLAMA_URL.value,
             )
-            model = st.text_input(
+            st.text_input(
                 "Embed Model",
-                value=st.session_state.get(SessionKeys.EMBED_MODEL.value, ""),
                 on_change=save_settings_callback,
                 key=SessionKeys.EMBED_MODEL.value,
             )
@@ -134,50 +123,38 @@ def render_embedding_settings(key_prefix: str = "") -> dict[str, Any]:
             "belgeleri tekrar yüklemeniz veya Sistemi Sıfırlamanız önerilir."
         )
 
-    return {"embed_model": model}
-
-def render_data_settings(key_prefix: str = "") -> dict[str, Any]:
+def render_data_settings(key_prefix: str = "") -> None:
     """Render data & system settings using modern components."""
     with st.container(border=True):
         st.markdown("**📁 Veri Yolları**")
-        data_dir = st.text_input(
+        st.text_input(
             "Veri Klasörü",
-            value=st.session_state.get(SessionKeys.DATA_DIR.value, ""),
             on_change=save_settings_callback,
             key=SessionKeys.DATA_DIR.value,
         )
-        chroma_path = st.text_input(
+        st.text_input(
             "Chroma Yolu",
-            value=st.session_state.get(SessionKeys.CHROMA_PATH.value, ""),
             on_change=save_settings_callback,
             key=SessionKeys.CHROMA_PATH.value,
         )
 
         from app.core.container import get_config
-        config = get_config()
+        _ = get_config()
         st.markdown("**✂️ Parçalama (Chunking)**")
         c1, c2 = st.columns(2)
-        chunk_size = c1.number_input(
+        c1.number_input(
             "Boyut",
             100,
             5000,
-            int(st.session_state.get(SessionKeys.CHUNK_SIZE.value, config.CHUNK_SIZE)),
             step=100,
             on_change=save_settings_callback,
             key=SessionKeys.CHUNK_SIZE.value,
         )
-        overlap = c2.number_input(
+        c2.number_input(
             "Overlap",
             0,
             1000,
-            int(st.session_state.get(SessionKeys.CHUNK_OVERLAP.value, config.CHUNK_OVERLAP)),
             step=50,
             on_change=save_settings_callback,
             key=SessionKeys.CHUNK_OVERLAP.value,
         )
-
-        # Data paths and chunking settings are handled directly by their widget keys
-        # The save_settings_callback attached to each widget ensures persistence.
-        model = st.session_state.get(SessionKeys.EMBED_MODEL.value, "")
-
-    return {}

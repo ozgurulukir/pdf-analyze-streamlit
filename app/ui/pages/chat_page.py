@@ -1,37 +1,47 @@
+from typing import cast
+
 import streamlit as st
 
 from app.core import Message
 from app.core.chroma import ChromaManager, EmbeddingManager
 from app.core.constants import SessionKeys
+from app.core.container import (
+    get_chroma,
+    get_config,
+    get_database,
+    get_embedding_manager,
+    get_rag_chain,
+)
+from app.core.locales import LocaleStrings
 from app.core.logger import get_logger
 from app.core.services.chat_service import ChatService
 from app.ui.state import state
 
 logger = get_logger(__name__)
 
-def render_source_cards(sources: list, key_suffix: str = ""):
+def render_source_cards(sources: list[object], key_suffix: str = "") -> None:
     """Render retrieval sources using native st.pills component (Streamlit 1.40+)."""
     if not sources:
         return
 
     # Process sources to get clean labels
-    src_labels = []
+    src_labels: list[str] = []
     for s in sources:
-        src_path = s.get("file", "Bilinmeyen") if isinstance(s, dict) else str(s)
-        name = src_path.split("/")[-1].split("\\")[-1]
+        src_path = cast(dict[str, object], s).get("file", "Bilinmeyen") if isinstance(s, dict) else str(s)
+        name = str(src_path).split("/")[-1].split("\\")[-1]
         src_labels.append(f"📄 {name}")
 
-    L = state.locale
+    L: LocaleStrings = state.locale
     if src_labels:
-        st.caption(L.chat.sources_title)
+        _ = st.caption(L.chat.sources_title)
         # Provide a unique key to prevent ID collisions
-        st.pills(L.library.status, src_labels, label_visibility="collapsed",
+        _ = st.pills(L.library.status, src_labels, label_visibility="collapsed",
                  selection_mode="single", disabled=False, key=f"pills_{key_suffix}")
 
 
-def render_empty_chat():
+def render_empty_chat() -> None:
     """Render modern empty chat state using pure native components."""
-    L = state.locale
+    L: LocaleStrings = state.locale
     with st.container():
         # Large vertical spacing using empty rows or containers
         st.write("")
@@ -40,20 +50,19 @@ def render_empty_chat():
 
         _, col, _ = st.columns([1, 2, 1])
         with col:
-            st.markdown("<h1 style='text-align: center; font-size: 4rem;'>💬</h1>", unsafe_allow_html=True) # Icon is fine as markdown
-            st.markdown(f"<h2 style='text-align: center;'>{L.chat.empty_title}</h2>", unsafe_allow_html=True)
-            st.markdown(f"<p style='text-align: center; color: gray;'>{L.chat.empty_subtitle}</p>", unsafe_allow_html=True)
+            _ = st.markdown("<h1 style='text-align: center; font-size: 4rem;'>💬</h1>", unsafe_allow_html=True) # Icon is fine as markdown
+            _ = st.markdown(f"<h2 style='text-align: center;'>{L.chat.empty_title}</h2>", unsafe_allow_html=True)
+            _ = st.markdown(f"<p style='text-align: center; color: gray;'>{L.chat.empty_subtitle}</p>", unsafe_allow_html=True)
 
         st.write("")
         st.write("")
 
 
-def render_chat_page(settings):
+def render_chat_page(settings: dict[str, object]) -> None:
     """Render the focused canvas chat interface."""
-    from app.core.container import get_database
     workspace_id = state.active_workspace_id
     session_id = state.active_session_id
-    L = state.locale
+    L: LocaleStrings = state.locale
 
     # Sync History from DB if session changed or not yet loaded
     last_synced = state.get("last_synced_session")
@@ -64,9 +73,9 @@ def render_chat_page(settings):
             state.set("last_synced_session", session_id)
 
     @st.fragment
-    def render_interactive_chat():
+    def render_interactive_chat() -> None:
         # Chat Messages Container
-        chat_history = state.get("chat_history", [])
+        chat_history = cast(list[Message], state.get("chat_history", []))
         if not chat_history:
             render_empty_chat()
         else:
@@ -99,27 +108,21 @@ def render_chat_page(settings):
 
                     with col_content:
                         # Render Question
-                        st.markdown(f"**👤 {msg.content}**")
+                        _ = st.markdown(f"**👤 {msg.content}**")
 
                     # Render Answer
                     if next_msg and next_msg.role == "assistant":
                         st.divider()
-                        st.markdown(next_msg.content)
+                        _ = st.markdown(next_msg.content)
 
                         if hasattr(next_msg, "sources") and next_msg.sources:
-                            render_source_cards(next_msg.sources, key_suffix=f"hist_{i}")
+                            render_source_cards(cast(list[object], next_msg.sources), key_suffix=f"hist_{i}")
 
                         # Bilgi Bankasına Ekle Butonu
-                        btn_col1, btn_col2 = st.columns([1, 4])
+                        btn_col1, _ = st.columns([1, 4])
                         if btn_col1.button(L.chat.add_to_kb, key=f"add_kb_{i}", help=L.chat.add_to_kb):
                             question = msg.content
                             with st.spinner(L.chat.kb_searching_tags):
-                                from app.core.container import (
-                                    get_chroma,
-                                    get_database,
-                                    get_embedding_manager,
-                                    get_rag_chain,
-                                )
                                 rag_db = get_database()
                                 rag = get_rag_chain(
                                     db=rag_db,
@@ -133,18 +136,18 @@ def render_chat_page(settings):
 
                                 rag_db.qa.create_from_params(
                                     workspace_id=workspace_id,
-                                    file_ids=[s.get("id") for s in (next_msg.sources or []) if isinstance(s, dict) and s.get("id")],
+                                    file_ids=[cast(dict[str, object], s).get("id") for s in (next_msg.sources or []) if isinstance(s, dict) and s.get("id")],
                                     question=question,
                                     answer=next_msg.content,
                                     tags=tags
                                 )
-                                st.toast(f"{L.chat.kb_added_toast} Etiketler: {', '.join(tags)}", icon="✅")
+                                _ = st.toast(f"{L.chat.kb_added_toast} Etiketler: {', '.join(tags)}", icon="✅")
                         i += 2
                     else:
                         i += 1
 
         # Bottom spacing for fixed input
-        st.markdown("<div style='height: 150px;'></div>", unsafe_allow_html=True)
+        _ = st.markdown("<div style='height: 150px;'></div>", unsafe_allow_html=True)
 
         prompt = st.chat_input(L.chat.input_placeholder)
 
@@ -165,12 +168,11 @@ def render_chat_page(settings):
             streaming_prompt = state.get(SessionKeys.STREAMING_PROMPT.value)
             state.delete(SessionKeys.STREAMING_PROMPT.value)
 
-            from app.core.container import get_config, get_database
             db = get_database()
             config = get_config()
 
             if not workspace_id:
-                st.warning("⚠️ Lütfen üst menüden bir çalışma alanı seçin.")
+                _ = st.warning("⚠️ Lütfen üst menüden bir çalışma alanı seçin.")
             else:
                 try:
                     from app.ui.callbacks import add_alert
@@ -179,19 +181,19 @@ def render_chat_page(settings):
                         add_alert("❌ Çalışma alanı bulunamadı.", "error")
                         st.rerun(scope="fragment")
 
-                    chroma_path = state.get(SessionKeys.CHROMA_PATH, config.CHROMA_PERSIST_DIR)
+                    chroma_path = cast(str, state.get(SessionKeys.CHROMA_PATH, config.CHROMA_PERSIST_DIR))
                     chroma = ChromaManager(persist_directory=chroma_path)
 
                     embedding = EmbeddingManager(
-                        use_huggingface=state.get(SessionKeys.USE_HUGGINGFACE, False),
-                        ollama_model=state.get(SessionKeys.EMBED_MODEL, "nomic-embed-text"),
-                        ollama_url=state.get(SessionKeys.OLLAMA_URL, "http://localhost:11434"),
-                        hf_model=state.get(SessionKeys.HF_EMBED_MODEL, "sentence-transformers/all-MiniLM-L6-v2"),
+                        use_huggingface=cast(bool, state.get(SessionKeys.USE_HUGGINGFACE, False)),
+                        ollama_model=cast(str, state.get(SessionKeys.EMBED_MODEL, "nomic-embed-text")),
+                        ollama_url=cast(str, state.get(SessionKeys.OLLAMA_URL, "http://localhost:11434")),
+                        hf_model=cast(str, state.get(SessionKeys.HF_EMBED_MODEL, "sentence-transformers/all-MiniLM-L6-v2")),
                     )
                     chat_service = ChatService(db, chroma, embedding)
 
                     with st.container(border=True):
-                        st.markdown(f"**👤 {streaming_prompt}**")
+                        _ = st.markdown(f"**👤 {streaming_prompt}**")
                         st.divider()
 
                         with st.status("🔍 İşleniyor...", expanded=True) as status:
@@ -199,26 +201,26 @@ def render_chat_page(settings):
 
                         response_placeholder = st.empty()
                         full_response = ""
-                        sources = []
+                        sources: list[object] = []
 
                         for event in chat_service.stream_response(question=streaming_prompt, workspace=workspace, llm_config=settings, session_id=session_id):
                             etype = event.get("type")
                             content = event.get("content")
 
-                            if etype == "status":
+                            if etype == "status" and content:
                                 status.update(label=f"➡️ {content}")
                             elif etype == "token" and content:
                                 full_response += str(content)
-                                response_placeholder.markdown(full_response + "▌")
-                                if status._container:
+                                _ = response_placeholder.markdown(full_response + "▌")
+                                if status and status._container:
                                     status.update(label="✅ Kaynaklar Tarandı", state="complete", expanded=False)
                             elif etype == "sources":
-                                sources = content if isinstance(content, list) else []
-                            elif etype == "error":
+                                sources = cast(list[object], content if isinstance(content, list) else [])
+                            elif etype == "error" and content:
                                 status.update(label="❌ Hata", state="error")
-                                st.toast(str(content), icon="❌")
+                                _ = st.toast(str(content), icon="❌")
 
-                        response_placeholder.markdown(full_response)
+                        _ = response_placeholder.markdown(full_response)
                         if sources:
                             render_source_cards(sources, key_suffix="current_stream")
 

@@ -32,9 +32,9 @@ def init_session_state() -> None:
     """
     logger.info("Initializing session state")
 
+    from app.core.exceptions import DatabaseError
     try:
-        from app.core.container import get_database, get_chroma
-        from app.core.exceptions import DatabaseError
+        from app.core.container import get_chroma, get_database
         db = get_database()
         chroma_manager = get_chroma()
         prefs = db.preferences.get()

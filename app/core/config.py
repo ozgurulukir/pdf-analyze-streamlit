@@ -148,6 +148,55 @@ class AppConfig(BaseSettings):
         "step_by_step": 0.5,
     }
 
+    # --- UI & UX Constants (Moved from constants.py) ---
+    DEFAULT_PAGINATION_LIMIT: int = Field(default=20)
+    UI_COLORS: dict[str, str] = Field(default={
+        "PRIMARY": "#FF4B4B",
+        "SECONDARY": "#FF8C00",
+        "SUCCESS": "#28A745",
+        "WARNING": "#FFC107",
+        "ERROR": "#DC3545",
+        "INFO": "#17A2B8",
+    })
+    UI_PLACEHOLDERS: dict[str, str] = Field(default={
+        "CHAT": "Mesajınızı yazın...",
+        "SEARCH": "Dosya ara...",
+        "UPLOAD": "Dosya yüklemek için sürükleyin veya tıklayın",
+    })
+
+    # --- Provider & RAG Constants (Moved from constants.py) ---
+    OLLAMA_CLOUD_URL: str = Field(default="https://ollama.com/v1")
+    OPENAI_COMPATIBLE_DEFAULT: str = Field(default="https://api.openai.com/v1")
+    MAX_CONTEXT_LENGTH: int = Field(default=4096)
+    
+    # --- File Types & Mime (Moved from constants.py) ---
+    ALLOWED_FILE_TYPES: list[str] = ["pdf", "txt", "docx", "html", "md", "pptx", "xlsx"]
+    FILE_MIME_TYPES: dict[str, str] = Field(default={
+        "pdf": "application/pdf",
+        "txt": "text/plain",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "html": "text/html",
+        "md": "text/markdown",
+    })
+
+    # --- L10n Messages (Moved from constants.py) ---
+    ERROR_MESSAGES: dict[str, str] = Field(default={
+        "FILE_TOO_LARGE": "Dosya boyutu çok büyük. Maksimum {} MB.",
+        "INVALID_FILE_TYPE": "Geçersiz dosya tipi. İzin verilen tipler: {}",
+        "DATABASE_ERROR": "Veritabanı hatası: {}",
+        "LLM_ERROR": "LLM hatası: {}",
+        "CHROMA_ERROR": "ChromaDB hatası: {}",
+        "FILE_NOT_FOUND": "Dosya bulunamadı: {}",
+        "WORKSPACE_NOT_FOUND": "Çalışma alanı bulunamadı: {}",
+        "INVALID_INPUT": "Geçersiz giriş: {}",
+    })
+    SUCCESS_MESSAGES: dict[str, str] = Field(default={
+        "FILE_UPLOADED": "Dosya başarıyla yüklendi: {}",
+        "WORKSPACE_CREATED": "Çalışma alanı oluşturuldu: {}",
+        "FILE_PROCESSED": "Dosya işlendi: {}",
+        "MESSAGE_SENT": "Mesaj gönderildi",
+    })
+
     @model_validator(mode="after")
     def _validate_model(self) -> "AppConfig":
         """Pydantic validator wrapper."""
@@ -232,6 +281,10 @@ class AppConfig(BaseSettings):
 
     def is_development(self) -> bool:
         return self.APP_ENV.lower() == "development"
+
+    def is_allowed_file_type(self, extension: str) -> bool:
+        """Check if file extension is allowed."""
+        return extension.lower().strip(".") in [ext.lower().strip(".") for ext in self.ALLOWED_FILE_TYPES]
 
     @property
     def MAX_FILE_SIZE_BYTES(self) -> int:

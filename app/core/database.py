@@ -1,7 +1,6 @@
 import sqlite3
 from pathlib import Path
 
-from app.core.config import AppConfig
 from app.core.exceptions import DatabaseError
 from app.core.logger import logger
 from app.core.repositories.sqlite_repositories import (

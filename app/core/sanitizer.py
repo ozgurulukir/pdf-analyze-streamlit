@@ -378,8 +378,8 @@ def validate_file_type(extension: str, allowed: list[str] | None = None) -> bool
 
     # Default allowed types
     if allowed is None:
-        from app.core.constants import FileTypes
+        from app.core.container import get_config
 
-        allowed = FileTypes.ALLOWED_EXTENSIONS
+        allowed = get_config().ALLOWED_FILE_TYPES
 
     return ext in [a.lower().lstrip(".") for a in allowed]

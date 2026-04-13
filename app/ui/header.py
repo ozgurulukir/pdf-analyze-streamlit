@@ -1,14 +1,16 @@
+from typing import Any, cast
+
 import streamlit as st
 
 from app.core.constants import ProcessingStatus, SessionKeys
+from app.core.locales import LocaleStrings
 from app.core.logger import logger
 from app.ui.state import state
 
 
-def render_header():
+def render_header() -> str:
     """Render a premium Canvas Top-Nav with dialog triggers."""
     from app.core.constants import UIPages
-    from app.core.database import DatabaseManager
     from app.ui.dialogs import (
         chat_sessions_dialog,
         document_library_dialog,
@@ -19,11 +21,11 @@ def render_header():
     # 0. Pure Streamlit Toaster (Handles messages across reruns)
     toast_data = state.pop_toast()
     if toast_data:
-        st.toast(toast_data[0], icon=toast_data[1])
+        _ = st.toast(toast_data[0], icon=toast_data[1])
 
     active_id = state.active_workspace_id
-    L = state.locale
-    current_page = state.current_page
+    L: LocaleStrings = cast(LocaleStrings, state.locale)
+    current_page = cast(str, state.current_page)
 
     from app.core.container import get_database
     db = get_database()
@@ -51,36 +53,36 @@ def render_header():
 
     with c1:
         # Workspace Switcher
-        ws_label = active_ws.name if active_ws else L.common.edit
-        sess_label = f" | {active_sess.title}" if active_sess else ""
-        if st.button(f"📂 {ws_label}{sess_label}", key="trigger_ws", help=L.workspace.title):
+        ws_name: str = str(active_ws.name) if active_ws else str(L.common.edit)
+        sess_title: str = f" | {active_sess.title}" if active_sess else ""
+        if st.button(f"📂 {ws_name}{sess_title}", key="trigger_ws", help=L.workspace.title):
             manage_workspaces_dialog()
 
     with c2:
         # View Switcher (Chat / Analysis / Knowledge)
         sub_cols = st.columns(3)
-        nav_map = state.get("NAV_MAP", {})
+        nav_map = cast(dict[str, Any], state.get("NAV_MAP", {}))
 
         if sub_cols[0].button(f"💬 {L.chat.title}", key="nav_chat", use_container_width=True,
-                              type="primary" if current_page == UIPages.CHAT else "secondary"):
+                               type="primary" if current_page == UIPages.CHAT else "secondary"):
             state.current_page = UIPages.CHAT
             if UIPages.CHAT in nav_map:
                 st.switch_page(nav_map[UIPages.CHAT])
 
         if sub_cols[1].button(f"📊 {L.analysis.title}", key="nav_analysis", use_container_width=True,
-                              type="primary" if current_page == UIPages.ANALYSIS else "secondary"):
+                               type="primary" if current_page == UIPages.ANALYSIS else "secondary"):
             state.current_page = UIPages.ANALYSIS
             if UIPages.ANALYSIS in nav_map:
                 st.switch_page(nav_map[UIPages.ANALYSIS])
 
         if sub_cols[2].button(f"⭐ {L.knowledge.title}", key="nav_knowledge", use_container_width=True,
-                              type="primary" if current_page == UIPages.KNOWLEDGE else "secondary"):
+                               type="primary" if current_page == UIPages.KNOWLEDGE else "secondary"):
             state.current_page = UIPages.KNOWLEDGE
             if UIPages.KNOWLEDGE in nav_map:
                 st.switch_page(nav_map[UIPages.KNOWLEDGE])
 
     # Settings dictionary for dialogs
-    settings = {
+    settings: dict[str, Any] = {
         "model": state.get(SessionKeys.LLM_MODEL),
         "temperature": state.get(SessionKeys.LLM_TEMPERATURE),
         "api_key": state.get(SessionKeys.OLLAMA_API_KEY),
@@ -111,14 +113,14 @@ def render_header():
     job_queue = get_job_queue(db=db)
 
     @st.fragment(run_every="2s")
-    def render_job_progress():
+    def render_job_progress() -> None:
         if active_id:
             # Force a fresh check from DB in the fragment
             active_jobs = job_queue.get_active_jobs(active_id)
             if active_jobs:
                 job = active_jobs[0]
                 progress_val = job.progress / 100.0 if job.progress <= 100 else 1.0
-                
+
                 with st.container(border=True):
                     # Status Headline
                     status_text = "Bekleniyor..."
@@ -128,22 +130,22 @@ def render_header():
                         status_text = "✅ Başarıyla Tamamlandı"
                     elif job.status == ProcessingStatus.FAILED.value:
                         status_text = "❌ İşlem Başarısız"
-                    
-                    st.markdown(f"**{status_text}**")
-                    st.progress(progress_val)
-                    
+
+                    _ = st.markdown(f"**{status_text}**")
+                    _ = st.progress(progress_val)
+
                     # Details
                     msg = f"⚙️ {job.job_type} | %{job.progress:.0f}"
                     if job.status == ProcessingStatus.RUNNING.value:
                          msg += " | Lütfen bekleyiniz..."
-                    st.caption(msg)
+                    _ = st.caption(msg)
 
                     if job.status == ProcessingStatus.FAILED.value and job.error_message:
-                        st.error(f"Hata Detayı: {job.error_message}")
+                        _ = st.error(f"Hata Detayı: {job.error_message}")
                     elif job.status == ProcessingStatus.COMPLETED.value:
-                        st.success("Tüm belgeler işlendi.")
+                        _ = st.success("Tüm belgeler işlendi.")
 
     render_job_progress()
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    _ = st.markdown("<br>", unsafe_allow_html=True)
     return current_page

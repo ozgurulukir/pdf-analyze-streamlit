@@ -56,7 +56,7 @@ class ChromaManager:
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize Chroma client: {e}")
-                raise ChromaConnectionError(f"Chroma client initialization failed: {e}")
+                raise ChromaConnectionError(f"Chroma client initialization failed: {e}") from e
         return self._client
 
     @staticmethod
@@ -118,7 +118,7 @@ class ChromaManager:
             )
         except Exception as e:
             logger.error(f"Failed to get/create collection {collection_name}: {e}")
-            raise ChromaCollectionError(f"Collection operation failed: {e}")
+            raise ChromaCollectionError(f"Collection operation failed: {e}") from e
 
     def get_collection(
         self, workspace_id: str, workspace_name: str
@@ -217,7 +217,7 @@ class ChromaManager:
             return ids
         except Exception as e:
             logger.error(f"Failed to add chunks to Chroma for file {file_id}: {e}")
-            raise ChromaCollectionError(f"Data ingestion failed: {e}")
+            raise ChromaCollectionError(f"Data ingestion failed: {e}") from e
 
     def query(
         self,
@@ -282,7 +282,7 @@ class ChromaManager:
             )
         except Exception as e:
             logger.error(f"Query failed for workspace {workspace_id}: {e}")
-            raise ChromaError(f"Similarity search failed: {e}")
+            raise ChromaError(f"Similarity search failed: {e}") from e
 
     def delete_file_chunks(
         self, workspace_id: str, workspace_name: str, file_id: str
@@ -365,18 +365,21 @@ class EmbeddingManager:
 
     def __init__(
         self,
-        use_huggingface: bool = False,
-        ollama_model: str = "nomic-embed-text",
-        ollama_url: str = "http://localhost:11434",
-        hf_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+        use_huggingface: bool | None = None,
+        ollama_model: str | None = None,
+        ollama_url: str | None = None,
+        hf_model: str | None = None,
     ):
         """
         Initialize the embedding manager.
         """
-        self.use_huggingface = use_huggingface
-        self.ollama_model = ollama_model
-        self.ollama_url = ollama_url
-        self.hf_model = hf_model
+        from app.core.container import get_config
+        config = get_config()
+
+        self.use_huggingface = use_huggingface if use_huggingface is not None else config.USE_HUGGINGFACE
+        self.ollama_model = ollama_model or config.EMBED_MODEL
+        self.ollama_url = ollama_url or config.OLLAMA_BASE_URL
+        self.hf_model = hf_model or config.HF_EMBED_MODEL
 
     def get_embeddings_model(self) -> Any:
         """
@@ -401,10 +404,10 @@ class EmbeddingManager:
         except ImportError as e:
             msg = f"Gerekli kütüphane bulunamadı: {str(e)}. Lütfen 'pip install langchain-huggingface' veya 'pip install langchain-ollama' komutlarını çalıştırın."
             logger.error(msg)
-            raise EmbeddingError(msg)
+            raise EmbeddingError(msg) from e
         except Exception as e:
             logger.error(f"Failed to initialize embedding model: {e}")
-            raise EmbeddingError(f"Embedding initialization failed: {e}")
+            raise EmbeddingError(f"Embedding initialization failed: {e}") from e
 
     def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
@@ -422,7 +425,7 @@ class EmbeddingManager:
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Embedding generation failed: {error_msg}")
-            
+
             # Specific handling for Ollama Windows error
             if "open NUL: Access is denied" in error_msg:
                 tip = (
@@ -430,9 +433,9 @@ class EmbeddingManager:
                     "yaşamasından kaynaklanır. Lütfen Ollama'yı tamamen kapatıp (System Tray'den) "
                     "Yönetici olarak yeniden başlatın veya Ayarlar'dan 'HuggingFace' sağlayıcısına geçin."
                 )
-                raise EmbeddingError(f"Ollama Runner Hatası: {error_msg}{tip}")
-                
-            raise EmbeddingError(f"Failed to generate embeddings: {error_msg}")
+                raise EmbeddingError(f"Ollama Runner Hatası: {error_msg}{tip}") from e
+
+            raise EmbeddingError(f"Failed to generate embeddings: {error_msg}") from e
 
     def get_query_embedding(self, query: str) -> list[float]:
         """
@@ -450,16 +453,16 @@ class EmbeddingManager:
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Query embedding generation failed: {error_msg}")
-            
+
             # Specific handling for Ollama Windows error
             if "open NUL: Access is denied" in error_msg:
                 tip = (
                     "\n\n💡 **İPUCU:** Ollama runner başlatılamadı (Erişim Engellendi). "
                     "Ollama uygulamasını yeniden başlatmayı deneyin veya HuggingFace modellerini kullanın."
                 )
-                raise EmbeddingError(f"Ollama Runner Hatası: {error_msg}{tip}")
-                
-            raise EmbeddingError(f"Failed to generate query embedding: {error_msg}")
+                raise EmbeddingError(f"Ollama Runner Hatası: {error_msg}{tip}") from e
+
+            raise EmbeddingError(f"Failed to generate query embedding: {error_msg}") from e
 
 
 class ChunkManager:
@@ -467,12 +470,14 @@ class ChunkManager:
     Handles text splitting and semantic chunking strategies.
     """
 
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
+    def __init__(self, chunk_size: int | None = None, chunk_overlap: int | None = None):
         """
         Initialize the chunk manager with size and overlap.
         """
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
+        from app.core.container import get_config
+        config = get_config()
+        self.chunk_size = chunk_size or config.CHUNK_SIZE
+        self.chunk_overlap = chunk_overlap if chunk_overlap is not None else config.CHUNK_OVERLAP
 
     def chunk_text(self, text: str) -> list[str]:
         """

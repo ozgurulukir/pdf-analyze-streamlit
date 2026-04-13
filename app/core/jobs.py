@@ -1,36 +1,41 @@
 """Background job queue and worker management."""
 
+from __future__ import annotations
+
 import queue
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from app.core.config import AppConfig
 
 from app.core.constants import ProcessingStatus
 from app.core.database import DatabaseManager
 from app.core.logger import logger
-from app.core.models import Job
+from app.core.models import FileMetadata, Job
 
 
 class JobQueue:
     """Thread-safe job queue for background processing."""
 
     def __init__(self, db: DatabaseManager, max_workers: int = 2):
-        self._queue: queue.Queue = queue.Queue()
-        self._executor = ThreadPoolExecutor(max_workers=max_workers)
+        self._queue: queue.Queue[Job] = queue.Queue()
+        self._executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=max_workers)
         self._jobs: dict[str, Job] = {}
-        self._lock = threading.Lock()
-        self._db = db
+        self._lock: threading.Lock = threading.Lock()
+        self._db: DatabaseManager = db
 
     def submit_job(
         self,
         job_type: str,
         workspace_id: str,
         file_ids: list[str],
-        task_func: Callable,
-        task_args: tuple = (),
-        task_kwargs: dict | None = None,
+        task_func: Callable[..., Any],
+        task_args: tuple[Any, ...] = (),
+        task_kwargs: dict[str, Any] | None = None,
     ) -> Job:
         """Submit a new job to the queue."""
         if task_kwargs is None:
@@ -48,26 +53,26 @@ class JobQueue:
         )
 
         # Save to database
-        self._db.jobs.create(job)
+        _ = self._db.jobs.create(job)
 
         # Store in memory
         with self._lock:
             self._jobs[job.id] = job
 
         # Create future
-        self._executor.submit(
+        _ = self._executor.submit(
             self._run_job, job, task_func, task_args, task_kwargs
         )
 
         return job
 
     def _run_job(
-        self, job: Job, task_func: Callable, task_args: tuple, task_kwargs: dict
-    ):
+        self, job: Job, task_func: Callable[..., Any], task_args: tuple[Any, ...], task_kwargs: dict[str, Any]
+    ) -> Any:
         """Run a job in the background."""
         job.status = ProcessingStatus.RUNNING.value
         job.started_at = datetime.now()
-        self._db.jobs.update(job)
+        _ = self._db.jobs.update(job)
 
         try:
             # Update progress callback
@@ -78,7 +83,7 @@ class JobQueue:
                 # Only log message, don't set as error_message unless it is one
                 if message:
                     logger.debug(f"Job {job.id} progress: {message}")
-                self._db.jobs.update(job)
+                _ = self._db.jobs.update(job)
 
             # Run the task
             result = task_func(
@@ -90,7 +95,7 @@ class JobQueue:
             job.progress = 100.0
             job.current = job.total
             job.completed_at = datetime.now()
-            self._db.jobs.update(job)
+            _ = self._db.jobs.update(job)
 
             return result
 
@@ -98,7 +103,7 @@ class JobQueue:
             job.status = ProcessingStatus.FAILED
             job.error_message = str(e)
             job.completed_at = datetime.now()
-            self._db.jobs.update(job)
+            _ = self._db.jobs.update(job)
             raise
 
     def get_job(self, job_id: str) -> Job | None:
@@ -126,9 +131,9 @@ class JobQueue:
 
         # Return those that are genuinely active OR recently finished
         return [
-            j for j in jobs 
+            j for j in jobs
             if j.status in (ProcessingStatus.PENDING.value, ProcessingStatus.RUNNING.value)
-            or (j.status in (ProcessingStatus.COMPLETED.value, ProcessingStatus.FAILED.value) 
+            or (j.status in (ProcessingStatus.COMPLETED.value, ProcessingStatus.FAILED.value)
                 and j.completed_at and j.completed_at > datetime.now() - timedelta(seconds=60))
         ]
 
@@ -148,7 +153,7 @@ class JobQueue:
             if job and job.status == ProcessingStatus.PENDING:
                 job.status = ProcessingStatus.CANCELLED
                 job.completed_at = datetime.now()
-                self._db.jobs.update(job)
+                _ = self._db.jobs.update(job)
                 return True
         return False
 
@@ -174,27 +179,28 @@ def get_job_queue(db: DatabaseManager | None = None) -> JobQueue:
 class EmbeddingWorker:
     """Worker for processing document embeddings."""
 
-    def __init__(self, embedding_manager, chunk_manager, chroma_manager):
-        self.embedding_manager = embedding_manager
-        self.chunk_manager = chunk_manager
-        self.chroma_manager = chroma_manager
+    def __init__(self, embedding_manager: Any, chunk_manager: Any, chroma_manager: Any):
+        self.embedding_manager: Any = embedding_manager
+        self.chunk_manager: Any = chunk_manager
+        self.chroma_manager: Any = chroma_manager
 
     def process_files(
         self,
-        files: list[Any],
+        files: list[dict[str, Any]],
         workspace_id: str,
         workspace_name: str,
         db: DatabaseManager,
         embedding_settings: dict[str, Any] | None = None,
-        progress_callback: Callable | None = None,
-    ) -> dict[str, Any]:
+        progress_callback: Callable[..., Any] | None = None,
+    ) -> dict[str, list[Any]]:
         """Process files: chunk, embed, and upsert to Chroma."""
 
-        results = {"success": [], "failed": []}
+        results: dict[str, list[Any]] = {"success": [], "failed": []}
 
         total_files = len(files)
 
         for idx, file_data in enumerate(files):
+            file_meta: FileMetadata | None = None
             try:
                 # Update progress
                 if progress_callback:
@@ -205,13 +211,13 @@ class EmbeddingWorker:
                     )
 
                 # Get file metadata from DB
-                file_meta = file_data.get("file_metadata")
+                file_meta = cast(FileMetadata, file_data.get("file_metadata"))
                 if not file_meta:
                     continue
 
                 # Update file status
                 file_meta.status = ProcessingStatus.PROCESSING
-                db.files.update(file_meta)
+                _ = db.files.update(file_meta)
 
                 # Check if Chroma already has chunks for this stable ID
                 existing_chunks = None
@@ -270,7 +276,7 @@ class EmbeddingWorker:
                 file_meta.status = ProcessingStatus.PROCESSED.value
                 file_meta.chunk_count = chunks_count
                 file_meta.processed_at = datetime.now()
-                db.files.update(file_meta)
+                _ = db.files.update(file_meta)
 
                 # Invalidate cache so UI sees the change
                 from app.core.cache import invalidate_file_cache
@@ -299,7 +305,7 @@ class EmbeddingWorker:
             if workspace:
                 workspace.file_count = db.files.count_by_workspace(workspace_id)
                 workspace.last_modified = datetime.now()
-                db.workspaces.update(workspace)
+                _ = db.workspaces.update(workspace)
                 from app.core.cache import invalidate_workspace_cache
                 invalidate_workspace_cache(workspace_id)
         except Exception as ws_err:
@@ -309,7 +315,7 @@ class EmbeddingWorker:
 
 
 def create_embedding_job(
-    files: list[Any],
+    files: list[dict[str, Any]],
     workspace_id: str,
     workspace_name: str,
     db: DatabaseManager,
@@ -365,7 +371,7 @@ def create_embedding_job(
     return job_queue.submit_job(
         job_type="embed",
         workspace_id=workspace_id,
-        file_ids=[f.get("id") for f in files],
+        file_ids=[cast(str, f.get("id")) for f in files if f.get("id")],
         task_func=worker.process_files,
         task_kwargs={
             "files": files,
